@@ -35,8 +35,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Кэшируем успешные ответы
-        if (response.ok) {
+        if (response.ok && event.request.method === 'GET') {
           const clone = response.clone()
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, clone)
