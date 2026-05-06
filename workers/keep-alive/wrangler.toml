@@ -1,0 +1,6 @@
+name = "minigame-keepalive"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+[triggers]
+crons = ["0 8 */6 * *"]  # каждые 6 дней в 08:00 UTC
