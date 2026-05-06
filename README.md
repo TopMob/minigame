@@ -1,7 +1,11 @@
 # MiniGame Platform — Финальный план
 
 > Веб-портал классических мини-игр с одиночной игрой, соло-AI и асинхронным/turn-based мультиплеером. Собрано из 4 исходных файлов (`README.md`, `Plan.md`, «Анализ и дополнение мини-игр», «Подбор мини-игр для сайта») с учётом внешней критики и жёсткого ограничения **«только бесплатные тарифы»**.
-
+---
+## ссылки-ключи
+https://supabase.com/dashboard/project/fyvkcpjnxguezimgsuvg
+NEXT_PUBLIC_SUPABASE_URL=https://fyvkcpjnxguezimgsuvg.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_K1OVrwlwxCdqzcUTqrBKNg_-pirxkNE
 ---
 
 ## Оглавление
