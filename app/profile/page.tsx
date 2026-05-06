@@ -17,10 +17,9 @@ export default function ProfilePage() {
 
   // Account Linking: гость может привязать Google-аккаунт
   async function handleLinkGoogle() {
-    try {
-      await supabase.auth.linkIdentity({ provider: 'google' })
-    } catch {
-      // Фоллбэк: если linkIdentity не поддерживается
+    const { error } = await supabase.auth.linkIdentity({ provider: 'google' })
+    if (error) {
+      // Фоллбэк: если linkIdentity не поддерживается или вернул ошибку
       const guestId = user?.id
       if (guestId) {
         localStorage.setItem('minigame_guest_id', guestId)
