@@ -1,0 +1,13 @@
+/* Тёмная тема — дополнительные переменные для игр */
+[data-theme="dark"] {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --text-primary: #fafafa;
+  --text-secondary: #9ca3af;
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --game-card-bg: #1f2937;
+  --game-card-border: #374151;
+  --game-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --game-grid-bg: #111827;
+}

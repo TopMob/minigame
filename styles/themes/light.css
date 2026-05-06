@@ -1,0 +1,13 @@
+/* Светлая тема — дополнительные переменные для игр */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b7280;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --game-card-bg: #ffffff;
+  --game-card-border: #e5e7eb;
+  --game-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --game-grid-bg: #f9fafb;
+}
