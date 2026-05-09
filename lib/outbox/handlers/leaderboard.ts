@@ -1,6 +1,6 @@
 // Хэндлер Outbox: обновление лидерборда
-// Каркас — полная реализация в Фазе 1
 
+import { supabase } from '@/lib/supabase/client'
 import type { OutboxItem } from '../types'
 
 export async function processLeaderboard(item: OutboxItem): Promise<void> {
@@ -8,6 +8,13 @@ export async function processLeaderboard(item: OutboxItem): Promise<void> {
 
   const { gameId, difficulty, time, score, won } = item.mutation.payload
 
-  // Заглушка — будет вызывать supabase.rpc('upsert_leaderboard', ...)
-  console.log('Outbox: лидерборд', { gameId, difficulty, time, score, won })
+  const { error } = await supabase.rpc('upsert_leaderboard', {
+    p_game_id: gameId,
+    p_difficulty: difficulty,
+    p_time: time,
+    p_score: score,
+    p_won: won,
+  })
+
+  if (error) throw new Error(`Ошибка обновления лидерборда: ${error.message}`)
 }

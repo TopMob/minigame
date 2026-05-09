@@ -1,6 +1,6 @@
 // Хэндлер Outbox: завершение игровой сессии
-// Каркас — полная реализация в Фазе 1
 
+import { supabase } from '@/lib/supabase/client'
 import type { OutboxItem } from '../types'
 
 export async function processSession(item: OutboxItem): Promise<void> {
@@ -8,6 +8,18 @@ export async function processSession(item: OutboxItem): Promise<void> {
 
   const { sessionId, score, duration, moves } = item.mutation.payload
 
-  // Заглушка — будет вставлять запись в game_sessions
-  console.log('Outbox: сессия', { sessionId, score, duration, moves })
+  const { error } = await supabase.from('game_sessions').upsert(
+    {
+      client_uuid: item.id,
+      game_id: sessionId,
+      score,
+      duration_seconds: duration,
+      moves,
+      status: 'finished',
+      finished_at: new Date().toISOString(),
+    },
+    { onConflict: 'client_uuid' }
+  )
+
+  if (error) throw new Error(`Ошибка записи сессии: ${error.message}`)
 }

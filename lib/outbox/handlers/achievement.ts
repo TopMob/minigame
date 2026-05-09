@@ -1,6 +1,6 @@
 // Хэндлер Outbox: выдача достижения
-// Каркас — полная реализация в Фазе 1
 
+import { supabase } from '@/lib/supabase/client'
 import type { OutboxItem } from '../types'
 
 export async function processAchievement(item: OutboxItem): Promise<void> {
@@ -8,6 +8,16 @@ export async function processAchievement(item: OutboxItem): Promise<void> {
 
   const { achievementId } = item.mutation.payload
 
-  // Заглушка — будет вставлять запись в user_achievements
-  console.log('Outbox: достижение', { achievementId })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { error } = await supabase.from('user_achievements').upsert(
+    {
+      user_id: user.id,
+      achievement_id: achievementId,
+    },
+    { onConflict: 'user_id,achievement_id' }
+  )
+
+  if (error) throw new Error(`Ошибка записи достижения: ${error.message}`)
 }
