@@ -1,15 +1,29 @@
-// Заглушка страницы Судоку — реализация в Фазе 1
+'use client'
+
+// Страница игры Судоку
+
+import dynamic from 'next/dynamic'
+
+// Динамический импорт движка — code splitting
+const SudokuGame = dynamic(
+  () => import('@/components/games/sudoku/SudokuGame').then((m) => ({ default: m.SudokuGame })),
+  {
+    loading: () => (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <span className="text-4xl">🔢</span>
+          <span className="text-muted-foreground">Загрузка Судоку...</span>
+        </div>
+      </div>
+    ),
+    ssr: false,
+  }
+)
+
 export default function SudokuPage() {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-      <span className="text-6xl">🔢</span>
-      <h1 className="mt-4 text-3xl font-bold">Судоку</h1>
-      <p className="mt-2 text-muted-foreground">
-        Скоро здесь появится полноценная игра в Судоку
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Фаза 1 — в разработке
-      </p>
+    <div className="flex flex-col items-center py-4">
+      <SudokuGame />
     </div>
   )
 }

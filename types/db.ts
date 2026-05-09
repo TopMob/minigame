@@ -28,6 +28,7 @@ export interface Database {
           recent_results?: unknown[]
           created_at?: string
         }
+        Relationships: []
       }
       games: {
         Row: {
@@ -54,6 +55,7 @@ export interface Database {
           is_active?: boolean
           sort_order?: number
         }
+        Relationships: []
       }
       leaderboard: {
         Row: {
@@ -86,6 +88,97 @@ export interface Database {
           games_won?: number
           updated_at?: string
         }
+        Relationships: []
+      }
+      game_sessions: {
+        Row: {
+          id: string
+          client_uuid: string | null
+          user_id: string | null
+          game_id: string
+          difficulty: string | null
+          status: string
+          score: number | null
+          duration_seconds: number | null
+          moves: number | null
+          metadata: Record<string, unknown>
+          started_at: string
+          finished_at: string | null
+        }
+        Insert: {
+          id?: string
+          client_uuid?: string | null
+          user_id?: string | null
+          game_id: string
+          difficulty?: string | null
+          status?: string
+          score?: number | null
+          duration_seconds?: number | null
+          moves?: number | null
+          metadata?: Record<string, unknown>
+          started_at?: string
+          finished_at?: string | null
+        }
+        Update: {
+          id?: string
+          client_uuid?: string | null
+          user_id?: string | null
+          game_id?: string
+          difficulty?: string | null
+          status?: string
+          score?: number | null
+          duration_seconds?: number | null
+          moves?: number | null
+          metadata?: Record<string, unknown>
+          started_at?: string
+          finished_at?: string | null
+        }
+        Relationships: []
+      }
+      achievements: {
+        Row: {
+          id: string
+          game_id: string | null
+          name: string
+          description: string | null
+          icon: string | null
+          condition: Record<string, unknown> | null
+        }
+        Insert: {
+          id: string
+          game_id?: string | null
+          name: string
+          description?: string | null
+          icon?: string | null
+          condition?: Record<string, unknown> | null
+        }
+        Update: {
+          id?: string
+          game_id?: string | null
+          name?: string
+          description?: string | null
+          icon?: string | null
+          condition?: Record<string, unknown> | null
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          user_id: string
+          achievement_id: string
+          earned_at: string
+        }
+        Insert: {
+          user_id: string
+          achievement_id: string
+          earned_at?: string
+        }
+        Update: {
+          user_id?: string
+          achievement_id?: string
+          earned_at?: string
+        }
+        Relationships: []
       }
       user_settings: {
         Row: {
@@ -109,8 +202,10 @@ export interface Database {
           animations_enabled?: boolean
           extra?: Record<string, unknown>
         }
+        Relationships: []
       }
     }
+    Views: Record<string, never>
     Functions: {
       upsert_leaderboard: {
         Args: {
@@ -120,7 +215,13 @@ export interface Database {
           p_score: number
           p_won: boolean
         }
-        Returns: void
+        Returns: undefined
+      }
+      merge_guest_into_user: {
+        Args: {
+          p_guest_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: Record<string, never>
