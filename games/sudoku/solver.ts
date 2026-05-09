@@ -152,7 +152,6 @@ export function applyLogicTechniques(grid: Grid): void {
     progress = false
     if (applyNakedSingles(grid)) { progress = true; continue }
     if (applyHiddenSingles(grid)) { progress = true; continue }
-    if (applyPointingPairs(grid)) progress = true
   }
 }
 

@@ -124,7 +124,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
       if (h.length === 0) return h
       const last = h[h.length - 1]
       setRedoStack((r) => [...r, { state: last.state, action: last.action }])
-      setState(last.state)
+      setState((prev) => ({ ...last.state, timeElapsed: prev.timeElapsed }))
       return h.slice(0, -1)
     })
   }, [])
