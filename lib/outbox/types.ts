@@ -2,7 +2,7 @@
 
 export type Mutation =
   | { type: 'leaderboard.upsert'; payload: { gameId: string; difficulty: string; time: number; score: number; won: boolean } }
-  | { type: 'session.finish'; payload: { sessionId: string; score: number; duration: number; moves: number } }
+  | { type: 'session.finish'; payload: { gameId: string; difficulty: string; score: number; duration: number; moves: number } }
   | { type: 'achievement.grant'; payload: { achievementId: string } }
 
 export interface OutboxItem {

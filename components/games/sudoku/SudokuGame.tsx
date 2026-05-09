@@ -110,7 +110,7 @@ export function SudokuGame() {
       }
 
       // N — переключение режима заметок
-      if (e.key === 'n' || e.key === 'N') {
+      if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey) {
         toggleNoteMode()
         return
       }
@@ -120,7 +120,7 @@ export function SudokuGame() {
       if (e.ctrlKey && e.key === 'y') { redo(); return }
 
       // H — подсказка
-      if (e.key === 'h' || e.key === 'H') {
+      if ((e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.metaKey) {
         applyHint()
         return
       }

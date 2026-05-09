@@ -6,7 +6,7 @@ import type { OutboxItem } from '../types'
 export async function processSession(item: OutboxItem): Promise<void> {
   if (item.mutation.type !== 'session.finish') return
 
-  const { sessionId, score, duration, moves } = item.mutation.payload
+  const { gameId, difficulty, score, duration, moves } = item.mutation.payload
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
@@ -15,7 +15,8 @@ export async function processSession(item: OutboxItem): Promise<void> {
     {
       client_uuid: item.id,
       user_id: user.id,
-      game_id: sessionId,
+      game_id: gameId,
+      difficulty,
       score,
       duration_seconds: duration,
       moves,
