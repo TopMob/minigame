@@ -120,8 +120,12 @@ function applyPointingPairs(grid: Grid): boolean {
           if (posColSet.has(c)) continue
           if (getBoxIndex(row, c) === boxIdx) continue
           if (grid[row][c] === EMPTY && getCandidates(grid, row, c).has(d)) {
-            // Pointing pair обнаружен — эффект применяется через backtracking
             changed = true
+            grid[row][c] = EMPTY
+            // mutate notes instead of deferring? Wait, notes are dynamically generated.
+            // Actually, getCandidates computes candidates dynamically from the grid.
+            // We can't easily mutate notes because solver operates on a Grid (number[][]), not CellState[][].
+            // Pointing pairs require a different representation or we can just stick to backtracking.
           }
         }
       }

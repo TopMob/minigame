@@ -23,7 +23,9 @@ export async function enqueue(mutation: Mutation): Promise<string> {
 
   // Попытка немедленной синхронизации, если онлайн
   if (typeof navigator !== 'undefined' && navigator.onLine) {
-    drain().catch(console.error)
+    drain().catch((error) => {
+      console.error('Outbox drain failed:', error)
+    })
   }
 
   return item.id

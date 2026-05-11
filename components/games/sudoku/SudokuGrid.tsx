@@ -11,7 +11,9 @@ interface SudokuGridProps {
   onCellClick: (row: number, col: number) => void
 }
 
-export function SudokuGrid({ state, onCellClick }: SudokuGridProps) {
+import { memo } from 'react'
+
+export const SudokuGrid = memo(function SudokuGrid({ state, onCellClick }: SudokuGridProps) {
   const { grid, selectedCell } = state
 
   // Определяем подсветку
@@ -49,11 +51,11 @@ export function SudokuGrid({ state, onCellClick }: SudokuGridProps) {
               isSelected={isSelected}
               isHighlighted={isHighlighted && !isSelected}
               isSameValue={isSameValue}
-              onClick={() => onCellClick(r, c)}
+              onClick={onCellClick}
             />
           )
         })
       )}
     </div>
   )
-}
+})

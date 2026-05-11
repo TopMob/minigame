@@ -10,7 +10,9 @@ import { DifficultySelector } from '@/components/shared/DifficultySelector'
 import { useSudoku } from '@/games/sudoku/hooks'
 import type { Difficulty, Digit } from '@/games/sudoku/types'
 import { DIFFICULTY_CONFIG } from '@/games/sudoku/types'
-import { cn } from '@/lib/utils'
+import { cn, formatTimeMMSS } from '@/lib/utils'
+import { GameOverlay } from '../GameOverlay'
+import { sudokuEngine } from '@/games/sudoku/engine'
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard', 'expert']
 
@@ -130,12 +132,6 @@ export function SudokuGame() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isPaused, isGameOver, state.selectedCell, handleDigit, handleErase, selectCell, toggleNoteMode, undo, redo, applyHint])
 
-  // Форматирование времени
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  }
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
@@ -153,7 +149,7 @@ export function SudokuGame() {
       <div className="flex items-center gap-4 sm:gap-6 text-sm sm:text-base">
         <div className="flex flex-col items-center">
           <span className="text-xs text-muted-foreground">Время</span>
-          <span className="font-mono text-lg tabular-nums">{formatTime(state.timeElapsed)}</span>
+          <span className="font-mono text-lg tabular-nums">{formatTimeMMSS(state.timeElapsed)}</span>
         </div>
         <div className="flex flex-col items-center">
           <span className="text-xs text-muted-foreground">Ошибки</span>
@@ -180,10 +176,7 @@ export function SudokuGame() {
 
         {/* Оверлей паузы */}
         {isPaused && !isGameOver && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm rounded-md">
-            <div className="flex flex-col items-center gap-3">
-              <span className="text-4xl">⏸</span>
-              <span className="text-xl font-semibold">Пауза</span>
+          <GameOverlay icon="⏸" title="Пауза">
               <button
                 type="button"
                 onClick={resume}
@@ -191,21 +184,17 @@ export function SudokuGame() {
               >
                 Продолжить
               </button>
-            </div>
-          </div>
+            </GameOverlay>
         )}
 
         {/* Оверлей завершения */}
         {state.isComplete && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm rounded-md">
-            <div className="flex flex-col items-center gap-3">
-              <span className="text-4xl">🎉</span>
-              <span className="text-xl font-semibold">Поздравляем!</span>
+          <GameOverlay icon="🎉" title="Поздравляем!">
               <span className="text-muted-foreground">
-                Время: {formatTime(state.timeElapsed)} | Ошибки: {state.errors} | Ходы: {state.moves}
+                Время: {formatTimeMMSS(state.timeElapsed)} | Ошибки: {state.errors} | Ходы: {state.moves}
               </span>
               <span className="text-lg font-bold text-accent">
-                Очки: {getScore(state)}
+                Очки: {sudokuEngine.getScore(state)}
               </span>
               <button
                 type="button"
@@ -214,16 +203,12 @@ export function SudokuGame() {
               >
                 Новая игра
               </button>
-            </div>
-          </div>
+            </GameOverlay>
         )}
 
         {/* Оверлей проигрыша */}
         {state.isFailed && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm rounded-md">
-            <div className="flex flex-col items-center gap-3">
-              <span className="text-4xl">😔</span>
-              <span className="text-xl font-semibold">Слишком много ошибок</span>
+          <GameOverlay icon="😔" title="Слишком много ошибок">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -240,8 +225,7 @@ export function SudokuGame() {
                   Новая игра
                 </button>
               </div>
-            </div>
-          </div>
+            </GameOverlay>
         )}
       </div>
 
@@ -273,15 +257,4 @@ export function SudokuGame() {
       </div>
     </div>
   )
-}
-
-// Подсчёт очков (дублирует engine.getScore для отображения)
-function getScore(state: { isComplete: boolean; difficulty: Difficulty; timeElapsed: number; errors: number; hintsUsed: number }): number {
-  if (!state.isComplete) return 0
-  const difficultyMultiplier = { easy: 1, medium: 2, hard: 3, expert: 4 }[state.difficulty]
-  const baseScore = 1000 * difficultyMultiplier
-  const timeBonus = Math.max(0, 600 - state.timeElapsed) * difficultyMultiplier
-  const errorPenalty = state.errors * 100
-  const hintPenalty = state.hintsUsed * 200
-  return Math.max(0, baseScore + timeBonus - errorPenalty - hintPenalty)
 }
