@@ -12,10 +12,12 @@ interface SudokuCellProps {
   isSelected: boolean
   isHighlighted: boolean // та же строка/столбец/блок
   isSameValue: boolean // та же цифра
-  onClick: () => void
+  onClick: (row: number, col: number) => void
 }
 
-export function SudokuCell({
+import { memo } from 'react'
+
+export const SudokuCell = memo(function SudokuCell({
   cell,
   row,
   col,
@@ -33,7 +35,7 @@ export function SudokuCell({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onClick(row, col)}
       className={cn(
         'flex items-center justify-center aspect-square w-full',
         'text-lg sm:text-xl md:text-2xl font-medium transition-colors',
@@ -77,4 +79,4 @@ export function SudokuCell({
       ) : null}
     </button>
   )
-}
+})
