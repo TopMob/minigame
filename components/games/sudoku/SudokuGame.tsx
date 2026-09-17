@@ -2,7 +2,7 @@
 
 // Главный компонент игры Судоку — собирает все части вместе
 
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { SudokuGrid } from './SudokuGrid'
 import { SudokuNumpad } from './SudokuNumpad'
 import { SudokuControls } from './SudokuControls'
@@ -13,6 +13,7 @@ import { DIFFICULTY_CONFIG } from '@/games/sudoku/types'
 import { cn, formatTimeMMSS } from '@/lib/utils'
 import { GameOverlay } from '../GameOverlay'
 import { sudokuEngine } from '@/games/sudoku/engine'
+import { saveGameRecord } from '@/lib/storage/records'
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard', 'expert']
 
@@ -37,6 +38,32 @@ export function SudokuGame() {
   } = useSudoku('easy')
 
   const isGameOver = state.isComplete || state.isFailed
+  const recordedRef = useRef(false)
+
+  // Сохранение рекорда в локальное хранилище при завершении игры
+  useEffect(() => {
+    if (state.isComplete && !recordedRef.current) {
+      recordedRef.current = true
+      saveGameRecord({
+        gameId: 'sudoku',
+        difficulty: state.difficulty,
+        timeSeconds: state.timeElapsed,
+        score: sudokuEngine.getScore(state),
+        won: true,
+      })
+    } else if (state.isFailed && !recordedRef.current) {
+      recordedRef.current = true
+      saveGameRecord({
+        gameId: 'sudoku',
+        difficulty: state.difficulty,
+        timeSeconds: state.timeElapsed,
+        score: 0,
+        won: false,
+      })
+    } else if (!state.isComplete && !state.isFailed) {
+      recordedRef.current = false
+    }
+  }, [state])
 
   // Подсчёт цифр на поле
   const digitCounts = useMemo(() => {

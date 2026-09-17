@@ -1,10 +1,8 @@
 import { GameGrid } from '@/components/games/GameGrid'
-import { GoogleOneTap } from '@/components/auth/GoogleOneTap'
 
 export default function HomePage() {
   return (
     <div className="container mx-auto px-4">
-      <GoogleOneTap />
 
       <section className="py-12 text-center">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">

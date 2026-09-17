@@ -49,10 +49,3 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
-// Background Sync для Outbox (заглушка)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'outbox-drain') {
-    // Будет реализовано вместе с Outbox
-    event.waitUntil(Promise.resolve())
-  }
-})

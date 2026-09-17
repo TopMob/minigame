@@ -9,10 +9,6 @@ export async function registerServiceWorker() {
       scope: '/',
     })
 
-    // Регистрация Background Sync для Outbox
-    if ('sync' in registration) {
-      await (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register('outbox-drain')
-    }
 
     console.log('Service Worker зарегистрирован:', registration.scope)
   } catch (error) {
