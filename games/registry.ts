@@ -26,7 +26,7 @@ export const GAME_REGISTRY: GameMeta[] = [
     isMultiplayer: false,
     pattern: 'A',
     persistsSessions: true,
-    isActive: false,
+    isActive: true,
   },
   {
     id: '2048',
@@ -37,8 +37,8 @@ export const GAME_REGISTRY: GameMeta[] = [
     difficulties: ['classic'],
     isMultiplayer: false,
     pattern: 'A',
-    persistsSessions: false,
-    isActive: false,
+    persistsSessions: true,
+    isActive: true,
   },
   {
     id: 'snake',
@@ -50,7 +50,7 @@ export const GAME_REGISTRY: GameMeta[] = [
     isMultiplayer: false,
     pattern: 'A',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'hangman',

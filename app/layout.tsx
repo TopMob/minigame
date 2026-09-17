@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'МиниИгры — Портал классических мини-игр',
+  title: 'МиниИгры: Портал классических мини-игр',
   description:
     'Веб-портал классических мини-игр: Судоку, Сапёр, 2048, Шахматы и другие. Играй онлайн и оффлайн.',
   manifest: '/manifest.json',

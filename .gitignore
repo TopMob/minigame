@@ -4,3 +4,4 @@ node_modules
 !.env.example
 *.pem
 .DS_Store
+*.tsbuildinfo

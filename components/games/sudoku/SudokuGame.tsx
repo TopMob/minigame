@@ -12,6 +12,7 @@ import type { Difficulty, Digit } from '@/games/sudoku/types'
 import { DIFFICULTY_CONFIG } from '@/games/sudoku/types'
 import { cn, formatTimeMMSS } from '@/lib/utils'
 import { GameOverlay } from '../GameOverlay'
+import { Confetti } from '../Confetti'
 import { sudokuEngine } from '@/games/sudoku/engine'
 import { saveGameRecord } from '@/lib/storage/records'
 
@@ -216,7 +217,9 @@ export function SudokuGame() {
 
         {/* Оверлей завершения */}
         {state.isComplete && (
-          <GameOverlay icon="🎉" title="Поздравляем!">
+          <>
+            <Confetti />
+            <GameOverlay icon="🎉" title="Поздравляем!">
               <span className="text-muted-foreground">
                 Время: {formatTimeMMSS(state.timeElapsed)} | Ошибки: {state.errors} | Ходы: {state.moves}
               </span>
@@ -231,6 +234,7 @@ export function SudokuGame() {
                 Новая игра
               </button>
             </GameOverlay>
+          </>
         )}
 
         {/* Оверлей проигрыша */}
@@ -280,7 +284,7 @@ export function SudokuGame() {
 
       {/* Подсказки по клавиатуре */}
       <div className="text-xs text-muted-foreground text-center mt-2 hidden sm:block">
-        Стрелки — навигация | 1-9 — цифра | Backspace — стереть | N — заметки | H — подсказка | Ctrl+Z/Y — отмена/повтор
+        Стрелки: навигация | 1-9: цифра | Backspace: стереть | N: заметки | H: подсказка | Ctrl+Z/Y: отмена/повтор
       </div>
     </div>
   )

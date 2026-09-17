@@ -3,7 +3,7 @@
 // Сетка Судоку 9x9 — основной компонент поля
 
 import { SudokuCell } from './SudokuCell'
-import type { SudokuState, Digit } from '@/games/sudoku/types'
+import type { SudokuState } from '@/games/sudoku/types'
 import { getBoxIndex } from '@/games/sudoku/constants'
 
 interface SudokuGridProps {

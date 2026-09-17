@@ -44,21 +44,31 @@ export function saveGameRecord(data: Omit<GameRecord, 'id' | 'playedAt'>): GameR
   return newRecord
 }
 
-export function getLeaderboardStats(gameId: string = 'sudoku'): DifficultyStats[] {
+export function getLeaderboardStats(
+  gameId: string = 'sudoku',
+  customDifficulties?: string[]
+): DifficultyStats[] {
   const records = getAllGameRecords().filter((r) => r.gameId === gameId)
-  const difficulties = ['easy', 'medium', 'hard', 'expert']
+  const defaultDiffs: Record<string, string[]> = {
+    sudoku: ['easy', 'medium', 'hard', 'expert'],
+    2048: ['classic'],
+    snake: ['easy', 'medium', 'hard'],
+    minesweeper: ['easy', 'medium', 'hard'],
+  }
+  const difficulties = customDifficulties || defaultDiffs[gameId] || ['easy', 'medium', 'hard']
 
   return difficulties.map((diff) => {
     const diffRecords = records.filter((r) => r.difficulty === diff)
     const wonRecords = diffRecords.filter((r) => r.won)
 
-    const bestTimeSeconds = wonRecords.length > 0
-      ? Math.min(...wonRecords.map((r) => r.timeSeconds))
-      : null
+    // Для змейки и 2048 лучший счет берется со всех партий
+    const scorePool = gameId === 'snake' || gameId === '2048' ? diffRecords : wonRecords
 
-    const bestScore = wonRecords.length > 0
-      ? Math.max(...wonRecords.map((r) => r.score))
-      : null
+    const bestTimeSeconds =
+      wonRecords.length > 0 ? Math.min(...wonRecords.map((r) => r.timeSeconds)) : null
+
+    const bestScore =
+      scorePool.length > 0 ? Math.max(...scorePool.map((r) => r.score)) : null
 
     return {
       difficulty: diff,

@@ -3,11 +3,9 @@
 
 import type { GameEngine } from '../_lib/types'
 import type { SudokuState, SudokuAction, SudokuOptions, CellState, Digit, Grid } from './types'
-import { MAX_ERRORS } from './constants'
-import { DIFFICULTY_CONFIG } from './types'
+import { MAX_ERRORS, getPeers } from './constants'
 import { generateSudoku } from './generator'
 import { getHint } from './solver'
-import { getPeers } from './constants'
 
 // Создание начального состояния клетки
 function createCellState(value: number, isGiven: boolean): CellState {
@@ -42,7 +40,7 @@ function checkComplete(grid: CellState[][], solution: Grid): boolean {
 }
 
 // Проверка: есть ли конфликт при размещении цифры
-function hasConflict(grid: CellState[][], row: number, col: number, digit: Digit): boolean {
+export function hasConflict(grid: CellState[][], row: number, col: number, digit: Digit): boolean {
   const peers = getPeers(row, col)
   for (const peer of peers) {
     if (grid[peer.row][peer.col].value === digit) return true
@@ -69,7 +67,7 @@ export const sudokuEngine: GameEngine<SudokuState, SudokuAction, SudokuOptions> 
       solution,
       difficulty: opts.difficulty,
       errors: 0,
-      maxErrors: 3,
+      maxErrors: MAX_ERRORS,
       isComplete: false,
       isFailed: false,
       selectedCell: null,
@@ -194,7 +192,6 @@ export const sudokuEngine: GameEngine<SudokuState, SudokuAction, SudokuOptions> 
 
   getScore(state: SudokuState): number {
     if (!state.isComplete) return 0
-    const config = DIFFICULTY_CONFIG[state.difficulty]
     // Базовые очки за сложность + бонус за скорость - штраф за ошибки и подсказки
     const difficultyMultiplier = { easy: 1, medium: 2, hard: 3, expert: 4 }[state.difficulty]
     const baseScore = 1000 * difficultyMultiplier

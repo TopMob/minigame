@@ -95,7 +95,7 @@ function applyHiddenSingles(grid: Grid): boolean {
 }
 
 // Pointing Pairs — если кандидат в блоке ограничен одной строкой/столбцом, убираем его из остальных клеток строки/столбца
-function applyPointingPairs(grid: Grid): boolean {
+export function applyPointingPairs(grid: Grid): boolean {
   let changed = false
 
   for (let boxIdx = 0; boxIdx < 9; boxIdx++) {

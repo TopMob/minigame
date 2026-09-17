@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next'
 // PWA манифест
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'МиниИгры — Портал классических мини-игр',
+    name: 'МиниИгры: Портал классических мини-игр',
     short_name: 'МиниИгры',
     description: 'Классические мини-игры прямо в браузере. Играй онлайн и оффлайн.',
     start_url: '/',

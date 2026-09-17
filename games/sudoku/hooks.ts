@@ -4,7 +4,8 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { sudokuEngine, getSudokuHint } from './engine'
-import type { SudokuState, SudokuAction, SudokuOptions, Difficulty, Digit } from './types'
+import type { SudokuState, SudokuAction, Difficulty, Digit } from './types'
+import { loadSudokuSession, saveSudokuSession, clearSudokuSession } from '@/lib/storage/sudokuSession'
 
 interface HistoryEntry {
   state: SudokuState
@@ -36,15 +37,28 @@ export interface UseSudokuReturn {
 }
 
 export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuReturn {
-  const [state, setState] = useState<SudokuState>(() =>
-    sudokuEngine.createInitialState({ difficulty: initialDifficulty })
-  )
+  const [state, setState] = useState<SudokuState>(() => {
+    const saved = loadSudokuSession()
+    if (saved && !saved.isComplete && !saved.isFailed) {
+      return saved
+    }
+    return sudokuEngine.createInitialState({ difficulty: initialDifficulty })
+  })
   const [isPaused, setIsPaused] = useState(false)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const initialSeedRef = useRef(state.seed)
   const initialDifficultyRef = useRef(state.difficulty)
+
+  // Автосохранение активной сессии
+  useEffect(() => {
+    if (state.isComplete || state.isFailed) {
+      clearSudokuSession()
+    } else {
+      saveSudokuSession(state)
+    }
+  }, [state])
 
   // Таймер
   useEffect(() => {
@@ -146,6 +160,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
   const resume = useCallback(() => setIsPaused(false), [])
 
   const newGame = useCallback((difficulty: Difficulty) => {
+    clearSudokuSession()
     const newState = sudokuEngine.createInitialState({ difficulty })
     setState(newState)
     setHistory([])
@@ -156,6 +171,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
   }, [])
 
   const restart = useCallback(() => {
+    clearSudokuSession()
     const newState = sudokuEngine.createInitialState(
       { difficulty: initialDifficultyRef.current },
       initialSeedRef.current
