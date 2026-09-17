@@ -12,6 +12,7 @@ import { saveGameRecord } from '@/lib/storage/records'
 import { minesweeperEngine } from '@/games/minesweeper/engine'
 import { Button } from '@/components/ui/button'
 import { RotateCcw, Flag, Pickaxe } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { Difficulty } from '@/games/minesweeper/types'
 
 const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
@@ -73,7 +74,12 @@ export function MinesweeperGame() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full max-w-[650px] px-3">
+    <div
+      className={cn(
+        'flex flex-col items-center gap-4 w-full px-3 transition-all',
+        state.difficulty === 'hard' ? 'max-w-[1050px]' : 'max-w-[650px]'
+      )}
+    >
       {/* Заголовок и селектор сложности */}
       <div className="flex flex-col items-center gap-3 w-full">
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Сапёр</h1>

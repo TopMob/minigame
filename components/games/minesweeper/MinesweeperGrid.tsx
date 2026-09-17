@@ -27,12 +27,12 @@ export const MinesweeperGrid = memo(function MinesweeperGrid({
   const cols = grid[0]?.length || 0
 
   return (
-    <div className="w-full overflow-x-auto flex justify-center p-1 scrollbar-thin">
+    <div className="w-full overflow-x-auto p-1 scrollbar-thin">
       <div
-        className="inline-grid border-2 border-border/80 rounded-lg p-1 bg-muted/30 shadow-inner"
+        className="grid w-fit mx-auto border-2 border-border/80 rounded-lg p-1 bg-muted/30 shadow-inner"
         style={{
-          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${cols}, max-content)`,
+          gridTemplateRows: `repeat(${rows}, max-content)`,
         }}
         role="grid"
         aria-label="Поле Сапёра"

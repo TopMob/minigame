@@ -162,7 +162,7 @@ export function SudokuGame() {
 
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full">
+    <div className="flex flex-col items-center gap-4 w-full max-w-[480px] px-3">
       {/* Заголовок и выбор сложности */}
       <div className="flex flex-col items-center gap-3 w-full">
         <h1 className="text-2xl sm:text-3xl font-bold">Судоку</h1>

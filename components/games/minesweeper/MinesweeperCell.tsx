@@ -36,15 +36,31 @@ export const MinesweeperCell = memo(function MinesweeperCell({
 }: MinesweeperCellProps) {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLongPressRef = useRef(false)
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null)
 
-  const handleTouchStart = () => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     isLongPressRef.current = false
+    if (e.touches.length > 0) {
+      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    }
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true
       if (!cell.isRevealed) {
         onContextMenu(cell.row, cell.col)
       }
     }, 380)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPosRef.current || e.touches.length === 0) return
+    const dx = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x)
+    const dy = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y)
+    if (dx > 8 || dy > 8) {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current)
+        longPressTimerRef.current = null
+      }
+    }
   }
 
   const handleTouchEnd = () => {
@@ -73,7 +89,9 @@ export const MinesweeperCell = memo(function MinesweeperCell({
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       disabled={isGameOver && !cell.isRevealed}
       aria-label={`Клетка ${cell.row + 1}, ${cell.col + 1}`}
       className={cn(

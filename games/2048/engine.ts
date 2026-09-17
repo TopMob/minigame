@@ -139,6 +139,7 @@ export const game2048Engine: GameEngine<Game2048State, Game2048Action, Game2048O
 
         let currR = r
         let currC = c
+        let merged = false
 
         while (true) {
           const nextR = currR + vector.r
@@ -170,12 +171,13 @@ export const game2048Engine: GameEngine<Game2048State, Game2048Action, Game2048O
               }
 
               moved = true
+              merged = true
             }
             break
           }
         }
 
-        if (currR !== r || currC !== c) {
+        if (!merged && (currR !== r || currC !== c)) {
           grid[currR][currC] = { ...tile, row: currR, col: currC }
           grid[r][c] = null
           moved = true
