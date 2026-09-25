@@ -7,9 +7,8 @@
 // - Сохранение рекордов и результатов матча
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { tennisEngine } from './engine'
+import { tennisEngine, createInitialScore } from './engine'
 import type { TennisState, TennisInput, TennisDifficulty } from './types'
-import { saveGameRecord } from '@/lib/storage/records'
 import { soundManager } from '@/lib/audio/sounds'
 
 export interface TennisUIState {
@@ -56,26 +55,23 @@ export function useTennisEngine(
   })
 
   // Реактивное состояние для UI (очки, фазы, баннеры)
-  const [uiState, setUiState] = useState<TennisUIState>(() => {
-    const s = stateRef.current
-    return {
-      score: s.score,
-      phase: s.phase,
-      serveBy: s.serveBy,
-      pointWinner: s.pointWinner,
-      faultReason: s.faultReason,
-      matchOver: s.matchOver,
-      matchWinner: s.matchWinner,
-      difficulty: s.difficulty,
-      rallyCount: s.rallyCount,
-      isSmash: false,
-    }
-  })
+  const [uiState, setUiState] = useState<TennisUIState>(() => ({
+    score: createInitialScore(),
+    phase: 'serve',
+    serveBy: 'player',
+    pointWinner: null,
+    faultReason: null,
+    matchOver: false,
+    matchWinner: null,
+    difficulty: initialDifficulty,
+    rallyCount: 0,
+    isSmash: false,
+  }))
 
   const lastPointerPos = useRef<{ x: number; y: number; time: number }>({
     x: 0.5,
     y: 0.6,
-    time: performance.now(),
+    time: 0,
   })
 
   const hiddenRef = useRef(false)
@@ -110,7 +106,7 @@ export function useTennisEngine(
     const normY = Math.max(0, Math.min(1, rawY))
 
     const now = performance.now()
-    const dt = (now - lastPointerPos.current.time) / 1000
+    const dt = lastPointerPos.current.time > 0 ? (now - lastPointerPos.current.time) / 1000 : 0.016
 
     let pvx = 0
     let pvy = 0
@@ -171,7 +167,7 @@ export function useTennisEngine(
     const container = containerRef.current
     if (!container) return
 
-    const handlePointerDown = (e: PointerEvent) => {
+    const handlePointerDown = () => {
       // Клик по корту совершает подачу, если мы в фазе serve
       if (stateRef.current.phase === 'serve') {
         serve()

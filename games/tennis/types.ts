@@ -66,6 +66,7 @@ export interface TennisState {
   score: TennisScore
   lastHitBy: HitBy
   serveBy: 'player' | 'opponent'
+  botServeTimer: number
   slowMotionTimer: number
   faultReason: 'net' | 'out' | 'double_bounce' | 'miss' | null
   pointWinner: 'player' | 'opponent' | null
@@ -92,7 +93,7 @@ export interface TennisOptions {
 export const TABLE_WIDTH = 152.5    // ширина стола (см)
 export const TABLE_LENGTH = 274.0   // длина стола (см)
 export const NET_Z = TABLE_LENGTH / 2 // 137.0 см (центр стола)
-export const NET_HEIGHT = 15.25     // высота сетки (см)
+export const NET_HEIGHT = 13.5      // высота сетки (см)
 export const BALL_RADIUS = 3.0      // радиус мяча (см)
 
 // Ракетки

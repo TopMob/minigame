@@ -9,9 +9,10 @@ import { pointsToLabel, SETS_TO_WIN } from '@/games/tennis/types'
 interface ScoreOverlayProps {
   state: TennisUIState
   onServe: () => void
+  onRestart?: () => void
 }
 
-export function ScoreOverlay({ state, onServe }: ScoreOverlayProps) {
+export function ScoreOverlay({ state, onServe, onRestart }: ScoreOverlayProps) {
   const { score, phase, pointWinner, faultReason, serveBy, matchWinner, matchOver, rallyCount, isSmash } = state
 
   const playerPts = pointsToLabel(score.playerPoints)
@@ -191,6 +192,14 @@ export function ScoreOverlay({ state, onServe }: ScoreOverlayProps) {
               <div className="text-white/80 text-sm mt-1.5 mb-4">
                 Итоговый счёт: {score.playerSets} : {score.opponentSets} по сетам
               </div>
+              {onRestart && (
+                <button
+                  onClick={onRestart}
+                  className="px-5 py-2.5 bg-white text-black font-bold text-sm rounded-xl hover:bg-white/90 active:scale-95 transition-all shadow-lg cursor-pointer"
+                >
+                  🔄 Играть снова
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}

@@ -13,7 +13,6 @@ import type {
 import {
   TABLE_WIDTH,
   TABLE_LENGTH,
-  NET_Z,
   PLAYER_PADDLE_Z,
   SETS_TO_WIN,
 } from './types'
@@ -177,6 +176,7 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
       score: createInitialScore(),
       lastHitBy: null,
       serveBy,
+      botServeTimer: 0,
       slowMotionTimer: 0,
       faultReason: null,
       pointWinner: null,
@@ -204,30 +204,31 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
       // Начальная подача мяча
       let serveBall: TennisBall
       if (isPlayer) {
+        // Подача игрока: стартует прямо от ракетки, плавная дуга над сеткой
         serveBall = {
-          x: state.player.x * 0.4,
-          y: 28,
-          z: 20,
-          vx: state.player.vx * 0.2,
-          vy: 110,
-          vz: 260,
+          x: state.player.x,
+          y: Math.max(22, state.player.y),
+          z: 15,
+          vx: state.player.vx * 0.25 + (state.player.x / TABLE_WIDTH) * 35,
+          vy: 52,
+          vz: 320,
           spinX: 0,
-          spinY: 0.5,
+          spinY: 0.2,
           bouncesPlayer: 0,
           bouncesOpponent: 0,
           isSmash: false,
         }
       } else {
-        // Подача соперника
+        // Подача соперника: перелетает сетку на половину игрока
         serveBall = {
-          x: 0,
-          y: 30,
-          z: TABLE_LENGTH - 20,
+          x: (Math.random() - 0.5) * 30,
+          y: 26,
+          z: TABLE_LENGTH - 15,
           vx: (Math.random() - 0.5) * 40,
-          vy: 110,
-          vz: -250,
+          vy: 50,
+          vz: -300,
           spinX: 0,
-          spinY: 0.4,
+          spinY: 0.2,
           bouncesPlayer: 0,
           bouncesOpponent: 0,
           isSmash: false,
@@ -238,7 +239,9 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
         ...state,
         phase: 'rally',
         ball: serveBall,
+        opponent: isPlayer ? state.opponent : { ...state.opponent, isHitting: true, hitTimer: 220 },
         lastHitBy: state.serveBy,
+        botServeTimer: 0,
         faultReason: null,
         pointWinner: null,
         rallyCount: 1,
@@ -256,7 +259,7 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
       const effectiveDt = state.slowMotionTimer > 0 ? dt * 0.35 : dt
       const newSlowTimer = Math.max(0, state.slowMotionTimer - dt * 1000)
 
-      let newState: TennisState = {
+      const newState: TennisState = {
         ...state,
         slowMotionTimer: newSlowTimer,
         elapsedMs: state.elapsedMs + dt * 1000,
@@ -266,16 +269,40 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
       const updatedPlayer = updatePlayerState(state.player, input, effectiveDt)
 
       if (state.phase === 'serve') {
-        // В фазе подачи мяч парит перед подающим
         const ball = createServeBall(state.serveBy)
         if (state.serveBy === 'player') {
-          ball.x = updatedPlayer.x * 0.6
-          ball.y = updatedPlayer.y + 4
-        }
-        return {
-          ...newState,
-          player: updatedPlayer,
-          ball,
+          ball.x = updatedPlayer.x
+          ball.y = Math.max(20, updatedPlayer.y)
+          ball.z = 15
+          return {
+            ...newState,
+            player: updatedPlayer,
+            ball,
+            botServeTimer: 0,
+          }
+        } else {
+          // Подача соперника: ведем таймер авто-подачи бота
+          const newBotTimer = state.botServeTimer - dt * 1000
+          if (newBotTimer <= 0) {
+            // Бот автоматически подает мяч
+            return tennisEngine.applyAction(
+              {
+                ...newState,
+                player: updatedPlayer,
+                botServeTimer: 0,
+              },
+              { type: 'serve' }
+            )
+          }
+
+          ball.x = state.opponent.x * 0.5
+          ball.y = state.opponent.y + 2
+          return {
+            ...newState,
+            player: updatedPlayer,
+            ball,
+            botServeTimer: newBotTimer,
+          }
         }
       }
 
@@ -287,6 +314,7 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
             ...newState,
             phase: 'serve',
             serveBy: nextServe,
+            botServeTimer: nextServe === 'opponent' ? 850 : 0,
             ball: createServeBall(nextServe),
             lastHitBy: null,
             faultReason: null,
@@ -379,8 +407,15 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
 
       // Г) Мяч пролетел далеко за спину игроку (z < -30)
       if (!pointWinner && ball.z < -30 && ball.vz < 0) {
-        pointWinner = 'opponent'
-        faultReason = 'miss'
+        if (lastHitBy === 'opponent' && ball.bouncesPlayer === 0) {
+          // Соперник выбил мяч в аут мимо стола
+          pointWinner = 'player'
+          faultReason = 'out'
+        } else {
+          // Игрок пропустил мяч, отскочивший на его половине
+          pointWinner = 'opponent'
+          faultReason = 'miss'
+        }
       }
 
       // Д) Мяч улетел далеко за стол соперника (z > TABLE_LENGTH + 60)

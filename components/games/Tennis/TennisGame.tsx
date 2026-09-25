@@ -112,7 +112,7 @@ export function TennisGame() {
           inputRef={inputRef}
           onStateChange={handleStateChange}
         />
-        <ScoreOverlay state={localUI} onServe={serve} />
+        <ScoreOverlay state={localUI} onServe={serve} onRestart={restart} />
       </div>
 
       {/* ── Подсказки управления ──────────────────────────────────────────────── */}

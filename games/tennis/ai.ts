@@ -3,7 +3,6 @@
 import type { TennisState, TennisOpponent, TennisBall } from './types'
 import {
   TABLE_WIDTH,
-  TABLE_LENGTH,
   OPPONENT_PADDLE_Z,
   TENNIS_DIFFICULTY_CONFIG,
 } from './types'
@@ -25,7 +24,8 @@ export function tickOpponent3D(
   const { opponent, ball, difficulty } = state
   const config = TENNIS_DIFFICULTY_CONFIG[difficulty]
 
-  let { x, y, targetX, targetY, reactionTimer, hitTimer } = opponent
+  const { x, y } = opponent
+  let { targetX, targetY, reactionTimer, hitTimer } = opponent
   let hitBall: TennisBall | null = null
 
   // Убывание таймеров
