@@ -162,15 +162,15 @@ export const GAME_REGISTRY: GameMeta[] = [
   },
   {
     id: 'pong',
-    name: 'Пинг-понг',
-    icon: '🏓',
+    name: 'Теннис',
+    icon: '🎾',
     category: 'arcade',
     path: '/pong',
-    difficulties: ['classic'],
-    isMultiplayer: true,
+    difficulties: ['easy', 'medium', 'hard'],
+    isMultiplayer: false,
     pattern: 'D',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
 ]
 
