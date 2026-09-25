@@ -1,4 +1,4 @@
-// Публичный API движка Теннис
+// Публичный API движка Теннис (3D от первого лица)
 
 export { tennisEngine } from './engine'
 export type { TennisAction } from './engine'
@@ -14,16 +14,17 @@ export type {
   TennisDifficulty,
 } from './types'
 export {
-  COURT_W,
-  COURT_H,
-  NET_Y,
+  TABLE_WIDTH,
+  TABLE_LENGTH,
+  NET_Z,
   NET_HEIGHT,
-  PLAYER_BASE_Y,
-  OPPONENT_BASE_Y,
-  PADDLE_W,
-  PADDLE_H,
-  BALL_R,
+  BALL_RADIUS,
+  PADDLE_RADIUS_X,
+  PADDLE_RADIUS_Y,
+  PLAYER_PADDLE_Z,
+  OPPONENT_PADDLE_Z,
   TENNIS_DIFFICULTY_CONFIG,
   SETS_TO_WIN,
   pointsToLabel,
 } from './types'
+export { project3D } from './physics'

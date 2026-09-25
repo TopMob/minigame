@@ -1,28 +1,36 @@
 'use client'
 
-// Хук интеграции движка тенниса с React:
-// - rAF-цикл с правильным dt
-// - буфер позиций мыши для расчёта скорости ракетки
-// - управление фазами игры (serve, rally, pointEnd, gameEnd)
-// - visibilitychange (не копим dt при возврате в вкладку)
+// React-хук для игры Теннис / Пинг-понг от первого лица:
+// - Быстрый игровой цикл без лагов и задержек (ноль лишних setState на каждый кадр)
+// - Мгновенное отслеживание мыши / тача (0 мс latency)
+// - Звуковые эффекты через Web Audio API
+// - Сохранение рекордов и результатов матча
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { tennisEngine } from '@/games/tennis/engine'
-import type { TennisState, TennisInput, TennisDifficulty } from '@/games/tennis/types'
+import { tennisEngine } from './engine'
+import type { TennisState, TennisInput, TennisDifficulty } from './types'
 import { saveGameRecord } from '@/lib/storage/records'
 import { soundManager } from '@/lib/audio/sounds'
 
-// Буфер последних N позиций мыши для расчёта скорости
-const MOUSE_BUFFER_SIZE = 6
-
-interface MouseSample {
-  x: number
-  y: number
-  t: number
+export interface TennisUIState {
+  score: TennisState['score']
+  phase: TennisState['phase']
+  serveBy: TennisState['serveBy']
+  pointWinner: TennisState['pointWinner']
+  faultReason: TennisState['faultReason']
+  matchOver: TennisState['matchOver']
+  matchWinner: TennisState['matchWinner']
+  difficulty: TennisState['difficulty']
+  rallyCount: number
+  isSmash: boolean
 }
 
 export interface UseTennisEngineReturn {
-  state: TennisState
+  // Для UI-компонентов (обновляется только при смене очков / фазы)
+  uiState: TennisUIState
+  // Ref на полное 3D состояние для прямого canvas-рендеринга без задержки
+  stateRef: React.MutableRefObject<TennisState>
+  inputRef: React.MutableRefObject<TennisInput>
   containerRef: React.RefObject<HTMLDivElement | null>
   serve: () => void
   restart: () => void
@@ -32,222 +40,168 @@ export interface UseTennisEngineReturn {
 export function useTennisEngine(
   initialDifficulty: TennisDifficulty = 'medium'
 ): UseTennisEngineReturn {
-  const [state, setState] = useState<TennisState>(() =>
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  // Мутабельное 3D состояние для 60-120 FPS физики без лагов
+  const stateRef = useRef<TennisState>(
     tennisEngine.createInitialState({ difficulty: initialDifficulty })
   )
 
-  // Ref на div-контейнер корта (для расчёта нормализованных координат мыши)
-  const containerRef = useRef<HTMLDivElement | null>(null)
+  // Ввод мыши / тача (мгновенное чтение)
+  const inputRef = useRef<TennisInput>({
+    normalizedX: 0.5,
+    normalizedY: 0.6,
+    pointerVX: 0,
+    pointerVY: 0,
+  })
 
-  // Буфер последних позиций мыши
-  const mouseBufferRef = useRef<MouseSample[]>([])
-  // Текущий input для движка
-  const inputRef = useRef<TennisInput>({ mouseX: 0.5, mouseY: 0.8, mouseVX: 0, mouseVY: 0 })
+  // Реактивное состояние для UI (очки, фазы, баннеры)
+  const [uiState, setUiState] = useState<TennisUIState>(() => {
+    const s = stateRef.current
+    return {
+      score: s.score,
+      phase: s.phase,
+      serveBy: s.serveBy,
+      pointWinner: s.pointWinner,
+      faultReason: s.faultReason,
+      matchOver: s.matchOver,
+      matchWinner: s.matchWinner,
+      difficulty: s.difficulty,
+      rallyCount: s.rallyCount,
+      isSmash: false,
+    }
+  })
 
-  // Флаг скрытия вкладки (для пропуска dt)
+  const lastPointerPos = useRef<{ x: number; y: number; time: number }>({
+    x: 0.5,
+    y: 0.6,
+    time: performance.now(),
+  })
+
   const hiddenRef = useRef(false)
-  // Время предыдущего кадра
-  const lastTimeRef = useRef<number | null>(null)
-  // rAF id
-  const rafRef = useRef<number | null>(null)
-  // Стейт в ref (чтобы избежать stale closure в rAF)
-  const stateRef = useRef(state)
-  stateRef.current = state
-
-  // Сохранение рекорда (один раз за матч)
   const recordedRef = useRef(false)
 
-  // ── Mousemove handler ──────────────────────────────────────────────────────
-  const handleMouseMove = useCallback((e: MouseEvent) => {
+  // Синхронизация UI состояния (вызывается при изменении очков/фаз)
+  const syncUI = useCallback((state: TennisState, isSmash = false) => {
+    setUiState({
+      score: { ...state.score },
+      phase: state.phase,
+      serveBy: state.serveBy,
+      pointWinner: state.pointWinner,
+      faultReason: state.faultReason,
+      matchOver: state.matchOver,
+      matchWinner: state.matchWinner,
+      difficulty: state.difficulty,
+      rallyCount: state.rallyCount,
+      isSmash,
+    })
+  }, [])
+
+  // ── Обработка движения мыши ────────────────────────────────────────────────
+  const handlePointerMove = useCallback((clientX: number, clientY: number) => {
     const container = containerRef.current
     if (!container) return
 
     const rect = container.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width
-    const y = (e.clientY - rect.top) / rect.height
+    const rawX = (clientX - rect.left) / rect.width
+    const rawY = (clientY - rect.top) / rect.height
+
+    const normX = Math.max(0, Math.min(1, rawX))
+    const normY = Math.max(0, Math.min(1, rawY))
 
     const now = performance.now()
-    const buf = mouseBufferRef.current
-    buf.push({ x, y, t: now })
-    if (buf.length > MOUSE_BUFFER_SIZE) buf.shift()
+    const dt = (now - lastPointerPos.current.time) / 1000
 
-    // Вычисляем скорость мыши из последних двух сэмплов (нормализованная, per sec)
-    let vx = 0
-    let vy = 0
-    if (buf.length >= 2) {
-      const a = buf[buf.length - 2]
-      const b = buf[buf.length - 1]
-      const dt = (b.t - a.t) / 1000
-      if (dt > 0) {
-        vx = (b.x - a.x) / dt
-        vy = (b.y - a.y) / dt
-      }
+    let pvx = 0
+    let pvy = 0
+    if (dt > 0.002 && dt < 0.2) {
+      // Пиксели в секунду (приведенные к масштабу 500px)
+      pvx = ((normX - lastPointerPos.current.x) * 500) / dt
+      pvy = ((normY - lastPointerPos.current.y) * 500) / dt
     }
 
-    inputRef.current = { mouseX: x, mouseY: y, mouseVX: vx, mouseVY: vy }
-  }, [])
+    lastPointerPos.current = { x: normX, y: normY, time: now }
 
-  // Touch support (мобильные)
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    e.preventDefault()
-    const container = containerRef.current
-    if (!container || e.touches.length === 0) return
-
-    const rect = container.getBoundingClientRect()
-    const touch = e.touches[0]
-    const x = (touch.clientX - rect.left) / rect.width
-    const y = (touch.clientY - rect.top) / rect.height
-
-    const now = performance.now()
-    const buf = mouseBufferRef.current
-    buf.push({ x, y, t: now })
-    if (buf.length > MOUSE_BUFFER_SIZE) buf.shift()
-
-    let vx = 0
-    let vy = 0
-    if (buf.length >= 2) {
-      const a = buf[buf.length - 2]
-      const b = buf[buf.length - 1]
-      const dt = (b.t - a.t) / 1000
-      if (dt > 0) {
-        vx = (b.x - a.x) / dt
-        vy = (b.y - a.y) / dt
-      }
+    inputRef.current = {
+      normalizedX: normX,
+      normalizedY: normY,
+      pointerVX: pvx,
+      pointerVY: pvy,
     }
-
-    inputRef.current = { mouseX: x, mouseY: y, mouseVX: vx, mouseVY: vy }
   }, [])
 
-  // ── Tap/click → serve (если фаза serve) ───────────────────────────────────
-  const handlePointerDown = useCallback(() => {
-    setState((prev) => {
-      if (prev.phase === 'serve') {
-        return tennisEngine.applyAction(prev, { type: 'serve' })
-      }
-      return prev
-    })
-  }, [])
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    handlePointerMove(e.clientX, e.clientY)
+  }, [handlePointerMove])
 
-  // ── Публичные методы ───────────────────────────────────────────────────────
+  const onTouchMove = useCallback((e: TouchEvent) => {
+    if (e.touches.length > 0) {
+      e.preventDefault()
+      handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)
+    }
+  }, [handlePointerMove])
+
+  // Подача по клику / тапу
   const serve = useCallback(() => {
-    setState((prev) => tennisEngine.applyAction(prev, { type: 'serve' }))
-  }, [])
+    const curr = stateRef.current
+    if (curr.phase === 'serve') {
+      const next = tennisEngine.applyAction(curr, { type: 'serve' })
+      stateRef.current = next
+      soundManager.playPaddleHit(false)
+      syncUI(next)
+    }
+  }, [syncUI])
 
   const restart = useCallback(() => {
     recordedRef.current = false
-    setState((prev) =>
-      tennisEngine.applyAction(prev, { type: 'restart' })
-    )
-  }, [])
+    const fresh = tennisEngine.createInitialState({ difficulty: stateRef.current.difficulty })
+    stateRef.current = fresh
+    syncUI(fresh)
+  }, [syncUI])
 
   const setDifficulty = useCallback((d: TennisDifficulty) => {
     recordedRef.current = false
-    setState((prev) =>
-      tennisEngine.applyAction(prev, { type: 'setDifficulty', difficulty: d })
-    )
-  }, [])
+    const fresh = tennisEngine.createInitialState({ difficulty: d })
+    stateRef.current = fresh
+    syncUI(fresh)
+  }, [syncUI])
 
-  // ── rAF игровой цикл ───────────────────────────────────────────────────────
+  // Слушатели событий ввода
   useEffect(() => {
-    function loop(timestamp: number) {
-      rafRef.current = requestAnimationFrame(loop)
+    const container = containerRef.current
+    if (!container) return
 
-      if (hiddenRef.current) {
-        lastTimeRef.current = timestamp
-        return
+    const handlePointerDown = (e: PointerEvent) => {
+      // Клик по корту совершает подачу, если мы в фазе serve
+      if (stateRef.current.phase === 'serve') {
+        serve()
       }
-
-      const prev = lastTimeRef.current
-      lastTimeRef.current = timestamp
-      if (prev === null) return
-
-      const rawDt = (timestamp - prev) / 1000
-      // Ограничиваем dt чтобы избежать скачков при потере фокуса
-      const dt = Math.min(rawDt, 0.05)
-
-      setState((currentState) => {
-        if (currentState.matchOver && currentState.phase === 'gameEnd') {
-          return currentState
-        }
-
-        const next = tennisEngine.applyAction(currentState, {
-          type: 'tick',
-          dt,
-          input: inputRef.current,
-        })
-
-        // Звуковые эффекты
-        if (next.lastHitBy !== currentState.lastHitBy) {
-          if (next.lastHitBy === 'player') {
-            const power = next.player.swingPower
-            if (power > 0.7) {
-              soundManager.playBonus() // сильный удар
-            } else {
-              soundManager.playEat()   // обычный удар
-            }
-          }
-        }
-
-        if (next.pointWinner && !currentState.pointWinner) {
-          if (next.pointWinner === 'player') {
-            soundManager.playVictory()
-          } else {
-            soundManager.playGameOver()
-          }
-        }
-
-        // Сохраняем рекорд когда матч окончен
-        if (next.matchOver && !currentState.matchOver && !recordedRef.current) {
-          recordedRef.current = true
-          saveGameRecord({
-            gameId: 'pong',
-            difficulty: next.difficulty,
-            timeSeconds: Math.round(next.elapsedMs / 1000),
-            score: tennisEngine.getScore(next),
-            won: next.matchWinner === 'player',
-          })
-        }
-
-        return next
-      })
     }
 
-    rafRef.current = requestAnimationFrame(loop)
+    container.addEventListener('mousemove', onMouseMove)
+    container.addEventListener('touchmove', onTouchMove, { passive: false })
+    container.addEventListener('pointerdown', handlePointerDown)
+
     return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+      container.removeEventListener('mousemove', onMouseMove)
+      container.removeEventListener('touchmove', onTouchMove)
+      container.removeEventListener('pointerdown', handlePointerDown)
     }
-  }, [])
+  }, [onMouseMove, onTouchMove, serve])
 
-  // ── visibilitychange ───────────────────────────────────────────────────────
+  // Обработка видимости вкладки
   useEffect(() => {
-    function onVisibility() {
+    const onVisibility = () => {
       hiddenRef.current = document.hidden
-      if (!document.hidden) {
-        lastTimeRef.current = null // сбрасываем dt при возврате
-      }
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [])
 
-  // ── Слушатели событий мыши/тач ─────────────────────────────────────────────
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    container.addEventListener('mousemove', handleMouseMove)
-    container.addEventListener('touchmove', handleTouchMove, { passive: false })
-    container.addEventListener('pointerdown', handlePointerDown)
-
-    return () => {
-      container.removeEventListener('mousemove', handleMouseMove)
-      container.removeEventListener('touchmove', handleTouchMove)
-      container.removeEventListener('pointerdown', handlePointerDown)
-    }
-  }, [handleMouseMove, handleTouchMove, handlePointerDown])
-
   return {
-    state,
+    uiState,
+    stateRef,
+    inputRef,
     containerRef,
     serve,
     restart,

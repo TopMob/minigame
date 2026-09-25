@@ -1,176 +1,332 @@
-// Физика мяча для тенниса — чистые детерминированные функции без побочных эффектов
+// Физика тенниса / пинг-понга в 3D пространстве с перспективной проекцией от первого лица
 
-import type { TennisBall } from './types'
-import { COURT_W, COURT_H, NET_Y, NET_HEIGHT, BALL_R } from './types'
+import type { TennisBall, TennisPlayer, TennisOpponent } from './types'
+import {
+  TABLE_WIDTH,
+  TABLE_LENGTH,
+  NET_Z,
+  NET_HEIGHT,
+  BALL_RADIUS,
+  PADDLE_RADIUS_X,
+  PADDLE_RADIUS_Y,
+  PLAYER_PADDLE_Z,
+  OPPONENT_PADDLE_Z,
+  CAMERA_X,
+  CAMERA_Y,
+  CAMERA_Z,
+  FOCAL_LENGTH,
+} from './types'
 
-// Физические константы
-const GRAVITY = 1800        // ускорение падения (ед/сек²)
-const AIR_DRAG = 0.018      // коэффициент сопротивления воздуха (на горизонталь)
-const RESTITUTION = 0.78    // коэффициент упругости отскока
-const GROUND_FRICTION = 0.82 // трение при отскоке (горизонт. скорость)
-const MAGNUS_COEFF = 0.12   // эффект Магнуса (спин → кривая траектории)
-const SPIN_DECAY = 0.94     // затухание спина за тик
+// Константы гравитации и воздуха (масштаб: см и секунды)
+const GRAVITY = -680.0       // см/с² (тянет вниз по Y)
+const AIR_DRAG = 0.00085     // сопротивление воздуха
+const TABLE_RESTITUTION = 0.88 // коэффициент упругости отскока от стола
+const TABLE_FRICTION = 0.94    // трение по X/Z при отскоке
+const MAGNUS_COEFF = 0.08    // влияние вращения на дугу полета
 
-export interface PhysicsResult {
-  ball: TennisBall
-  bounced: boolean      // произошёл ли отскок от корта в этом тике
-  hitNet: boolean       // пересёк сетку по высоте ниже допустимого
-  outOfBounds: boolean  // вышел за пределы корта
-  bouncePoint: { x: number; y: number } | null // точка отскока для эффектов пыли
+export interface ProjectedPoint {
+  x: number
+  y: number
+  scale: number
+  visible: boolean
 }
 
 /**
- * Обновляет состояние мяча на один тик dt (в секундах).
- * Чистая функция: (ball, dt) => PhysicsResult
+ * Перспективная 3D проекция точки мира (x, y, z) в координаты экрана (px).
+ * Камера находится в (CAMERA_X, CAMERA_Y, CAMERA_Z) и смотрит вдоль оси Z вглубь стола.
  */
-export function stepBall(ball: TennisBall, dt: number): PhysicsResult {
-  let { x, y, z, vx, vy, vz, spin } = ball
+export function project3D(
+  x: number,
+  y: number,
+  z: number,
+  viewWidth: number,
+  viewHeight: number
+): ProjectedPoint {
+  const dz = z - CAMERA_Z
+  if (dz <= 4) {
+    return { x: 0, y: 0, scale: 0, visible: false }
+  }
 
-  // Сопротивление воздуха — замедляет горизонт. скорость
-  const speed = Math.sqrt(vx * vx + vy * vy)
-  const drag = 1 - AIR_DRAG * speed * dt
-  vx *= drag
-  vy *= drag
+  const scale = FOCAL_LENGTH / dz
+  const cx = viewWidth / 2
+  // Линия горизонта чуть выше центра для отличного обзора стола
+  const cy = viewHeight * 0.40
 
-  // Эффект Магнуса: спин отклоняет горизонталь
-  // Топспин (spin > 0) тянет вниз по корту (увеличивает vy), слайс — обратно
-  vx += spin * MAGNUS_COEFF * vy * dt
-  vy += spin * MAGNUS_COEFF * Math.abs(vy) * dt
+  const screenX = cx + (x - CAMERA_X) * scale
+  // Ось Y направлена вверх, а на экране Y вниз
+  const screenY = cy - (y - CAMERA_Y) * scale
+
+  return {
+    x: screenX,
+    y: screenY,
+    scale,
+    visible: true,
+  }
+}
+
+export interface BallStepResult {
+  ball: TennisBall
+  bouncedTable: boolean
+  bouncedSide: 'player' | 'opponent' | null
+  hitNet: boolean
+  bounceCoords: { x: number; y: number; z: number } | null
+}
+
+/**
+ * Шаг физики полета мяча за время dt (секунды).
+ * Обрабатывает гравитацию, сопротивление, вращение, отскок от стола и сетку.
+ */
+export function stepBall3D(ball: TennisBall, dt: number): BallStepResult {
+  let { x, y, z, vx, vy, vz, spinX, spinY, bouncesPlayer, bouncesOpponent, isSmash } = ball
+
+  const prevZ = z
+  const prevY = y
+
+  // 1. Аэродинамика и вращение (эффект Магнуса)
+  const speed = Math.sqrt(vx * vx + vy * vy + vz * vz)
+  const dragFactor = Math.max(0.7, 1 - AIR_DRAG * speed * dt)
+  vx *= dragFactor
+  vy *= dragFactor
+  vz *= dragFactor
+
+  // Топспин (spinY > 0) прижимает мяч вниз, слайс поднимает
+  vy += spinY * MAGNUS_COEFF * Math.abs(vz) * dt
+  // Боковой спин уводит мяч в сторону
+  vx += spinX * MAGNUS_COEFF * Math.abs(vz) * dt
 
   // Гравитация
-  vz -= GRAVITY * dt
+  vy += GRAVITY * dt
 
-  // Интегрируем позицию
+  // Интегрирование позиции
   x += vx * dt
   y += vy * dt
   z += vz * dt
 
-  // Затухание спина
-  spin *= SPIN_DECAY
+  // Затухание вращения
+  spinX *= 0.985
+  spinY *= 0.985
 
-  let bounced = false
-  let bouncePoint: { x: number; y: number } | null = null
-
-  // Отскок от корта (z <= 0)
-  if (z <= 0) {
-    z = 0
-    vz = Math.abs(vz) * RESTITUTION
-
-    // Спин влияет на направление отскока
-    vy += spin * 0.4  // топспин ускоряет "прыжок вперёд"
-    vx += spin * 0.15
-
-    // Трение при отскоке
-    vx *= GROUND_FRICTION
-    vy *= GROUND_FRICTION
-
-    // Если скорость z слишком мала — мяч остановился на полу
-    if (vz < 40) {
-      vz = 0
-    }
-
-    bounced = true
-    bouncePoint = { x, y }
-  }
-
-  // Горизонтальные границы корта (боковые стены)
-  if (x < BALL_R) {
-    x = BALL_R
-    vx = Math.abs(vx) * 0.7
-  } else if (x > COURT_W - BALL_R) {
-    x = COURT_W - BALL_R
-    vx = -Math.abs(vx) * 0.7
-  }
-
-  // Проверка пересечения сетки
-  // Сетка находится по Y = NET_Y, имеет высоту NET_HEIGHT
+  let bouncedTable = false
+  let bouncedSide: 'player' | 'opponent' | null = null
+  let bounceCoords: { x: number; y: number; z: number } | null = null
   let hitNet = false
-  const prevY = y - vy * dt
-  const crossedNet = (prevY < NET_Y && y >= NET_Y) || (prevY > NET_Y && y <= NET_Y)
-  if (crossedNet && z < NET_HEIGHT && z >= 0) {
-    hitNet = true
+
+  // 2. Отскок от стола:
+  // Стол находится в z: [0 .. TABLE_LENGTH], x: [-TABLE_WIDTH/2 .. TABLE_WIDTH/2], y = 0
+  const halfW = TABLE_WIDTH / 2
+  const isOnTableX = Math.abs(x) <= halfW + BALL_RADIUS
+  const isOnTableZ = z >= -BALL_RADIUS && z <= TABLE_LENGTH + BALL_RADIUS
+
+  if (isOnTableX && isOnTableZ) {
+    if (y <= BALL_RADIUS && vy < 0) {
+      y = BALL_RADIUS
+      vy = Math.abs(vy) * TABLE_RESTITUTION
+
+      // Влияние спина на отскок
+      vz += spinY * 18.0
+      vx += spinX * 12.0
+
+      vx *= TABLE_FRICTION
+      vz *= TABLE_FRICTION
+
+      bouncedTable = true
+      bounceCoords = { x, y: 0, z }
+
+      if (z <= NET_Z) {
+        bouncesPlayer++
+        bouncedSide = 'player'
+      } else {
+        bouncesOpponent++
+        bouncedSide = 'opponent'
+      }
+    }
   }
 
-  // Аут: мяч вышел за Y-границы корта (после отскока)
-  const outOfBounds = y < -BALL_R || y > COURT_H + BALL_R
+  // 3. Проверка столкновения с сеткой:
+  // Сетка расположена в z = NET_Z, высота от y=0 до y=NET_HEIGHT
+  const crossedNet = (prevZ < NET_Z && z >= NET_Z) || (prevZ > NET_Z && z <= NET_Z)
+  if (crossedNet && Math.abs(x) <= halfW + 6) {
+    // Высота в момент пролета над сеткой (линейная интерполяция)
+    const tNet = (NET_Z - prevZ) / (z - prevZ || 1)
+    const yAtNet = prevY + (y - prevY) * tNet
 
-  const newBall: TennisBall = { x, y, z, vx, vy, vz, spin }
-  return { ball: newBall, bounced, hitNet, outOfBounds, bouncePoint }
-}
+    if (yAtNet <= NET_HEIGHT && yAtNet >= 0) {
+      hitNet = true
+      // Застревание в сетке / отскок вниз
+      z = prevZ
+      vz = -vz * 0.25
+      vy = -Math.abs(vy) * 0.4
+    }
+  }
 
-/** Проверяет, вышел ли мяч за пределы корта по X (сайд-аут) */
-export function isSideOut(ball: TennisBall): boolean {
-  return ball.x < 0 || ball.x > COURT_W
+  return {
+    ball: {
+      x,
+      y,
+      z,
+      vx,
+      vy,
+      vz,
+      spinX,
+      spinY,
+      bouncesPlayer,
+      bouncesOpponent,
+      isSmash,
+    },
+    bouncedTable,
+    bouncedSide,
+    hitNet,
+    bounceCoords,
+  }
 }
 
 /**
- * Вычисляет вектор скорости мяча после удара ракеткой.
- *
- * @param ball         текущее состояние мяча
- * @param paddleVX     скорость ракетки по X (ед/сек)
- * @param paddleVY     скорость ракетки по Y
- * @param hitOffsetX   смещение точки контакта от центра ракетки (-1..1)
- * @param direction    1 = удар вверх (игрок), -1 = удар вниз (соперник)
- * @param power        0..1 сила удара
- * @returns новый мяч после удара
+ * Проверка столкновения мяча с ракеткой игрока (ближняя зона).
+ * Использует непрерывную проверку (swept-check), чтобы мяч на высокой скорости не пролетал сквозь ракетку.
  */
-export function applyHit(
+export function checkPlayerHit(
   ball: TennisBall,
-  paddleVX: number,
-  paddleVY: number,
-  hitOffsetX: number,
-  direction: 1 | -1,
-  power: number
-): TennisBall {
-  // Базовая скорость после удара: смесь входящей и скорости ракетки
-  const BASE_SPEED = 480 + power * 380
-  const paddleSpeedY = Math.abs(paddleVY)
+  prevBallZ: number,
+  player: TennisPlayer
+): { hit: boolean; newBall: TennisBall; isSmash: boolean } {
+  // Игрок может отбить мяч только если он летит НА игрока (vz < 0)
+  if (ball.vz >= 0) {
+    return { hit: false, newBall: ball, isSmash: false }
+  }
 
-  // Чем быстрее движется ракетка — тем сильнее удар
-  const impact = Math.min(1, paddleSpeedY / 500)
-  const totalSpeed = BASE_SPEED * (0.6 + 0.4 * impact)
+  // Плоскость контакта ракетки игрока
+  const hitPlaneZ = PLAYER_PADDLE_Z
 
-  // Горизонтальное отклонение: от смещения удара и горизонтальной скорости ракетки
-  const lateralBias = hitOffsetX * totalSpeed * 0.45 + paddleVX * 0.5
-  const newVX = Math.max(-700, Math.min(700, ball.vx * 0.2 + lateralBias))
+  // Проверяем, пересек ли мяч плоскость ракетки в этом кадре или находится рядом
+  const crossedPlane = (prevBallZ >= hitPlaneZ && ball.z <= hitPlaneZ + 12) ||
+                       (ball.z >= hitPlaneZ - 10 && ball.z <= hitPlaneZ + 15)
 
-  // Скорость по Y (направление к противнику)
-  const depthSpeed = totalSpeed * 0.9
-  const newVY = direction * (-depthSpeed) // direction=-1 → вверх по экрану
+  if (!crossedPlane) {
+    return { hit: false, newBall: ball, isSmash: false }
+  }
 
-  // Начальная вертикальная скорость: поднимаем мяч над сеткой
-  const liftBase = 420 + power * 260
-  const newVZ = liftBase * (0.7 + 0.3 * impact)
+  // Расстояние от центра ракетки до мяча
+  const dx = ball.x - player.x
+  const dy = ball.y - player.y
 
-  // Спин: боковая скорость ракетки → подкрутка
-  const spin = (paddleVX / 500) * 0.8 + (paddleVY > 0 ? 0.4 : -0.3)
+  // Эллиптическая зона ракетки
+  const normX = dx / (PADDLE_RADIUS_X * 1.35)
+  const normY = dy / (PADDLE_RADIUS_Y * 1.35)
+  const distSq = normX * normX + normY * normY
 
-  return {
+  if (distSq > 1.3) {
+    return { hit: false, newBall: ball, isSmash: false }
+  }
+
+  // ── УДАР СОСТОЯЛСЯ! Вычисляем новую скорость и угол ──────────────────────
+  const mouseSpeed = Math.sqrt(player.vx * player.vx + player.vy * player.vy)
+  const isSmash = mouseSpeed > 320 || player.swingPower > 0.75
+
+  // Базовая скорость вперед вглубь стола
+  let baseForwardSpeed = 240 + (isSmash ? 200 : player.swingPower * 140)
+  // Добавляем скорость ракетки вперед / вверх
+  if (player.vy > 0) {
+    baseForwardSpeed += Math.min(160, player.vy * 0.3)
+  }
+
+  // Горизонтальный угол: зависит от точки касания на ракетке и бокового взмаха
+  const lateralSpeed = dx * 6.5 + player.vx * 0.45
+  const newVX = Math.max(-280, Math.min(280, lateralSpeed))
+
+  // Вертикальный подъем: должен перебросить сетку
+  let newVY = 120 + dy * 4.0 + player.vy * 0.25
+  if (isSmash) {
+    // При мощном смэше мяч летит более полого и с сильным топспином
+    newVY = Math.max(70, Math.min(170, newVY))
+  } else {
+    newVY = Math.max(90, Math.min(240, newVY))
+  }
+
+  const newVZ = Math.max(220, baseForwardSpeed)
+
+  // Вращение мяча
+  const spinX = (player.vx / 300) * 1.5
+  const spinY = (isSmash ? 1.4 : 0.4) + (player.vy / 250) * 0.8
+
+  const newBall: TennisBall = {
     ...ball,
+    z: hitPlaneZ + 2,
     vx: newVX,
     vy: newVY,
     vz: newVZ,
-    spin: Math.max(-1, Math.min(1, spin)),
+    spinX: Math.max(-2, Math.min(2, spinX)),
+    spinY: Math.max(-1.5, Math.min(2.5, spinY)),
+    bouncesPlayer: 0,
+    bouncesOpponent: 0,
+    isSmash,
   }
+
+  return { hit: true, newBall, isSmash }
 }
 
 /**
- * Предсказывает точку, где мяч достигнет y=targetY (для AI).
- * Простая аналитическая аппроксимация (без гравитации — достаточно для бота).
+ * Проверка столкновения мяча с ракеткой соперника (дальняя зона).
  */
-export function predictLandingX(ball: TennisBall, targetY: number): number {
-  if (Math.abs(ball.vy) < 1) return ball.x
-  const tTravel = Math.abs((targetY - ball.y) / ball.vy)
-  let predictedX = ball.x + ball.vx * tTravel
-  // Учитываем отражение от боковых стен
-  while (predictedX < 0 || predictedX > COURT_W) {
-    if (predictedX < 0) predictedX = -predictedX
-    if (predictedX > COURT_W) predictedX = 2 * COURT_W - predictedX
+export function checkOpponentHit(
+  ball: TennisBall,
+  prevBallZ: number,
+  opponent: TennisOpponent,
+  accuracy: number,
+  power: number
+): { hit: boolean; newBall: TennisBall } {
+  // Соперник отбивает мяч, летящий от игрока (vz > 0)
+  if (ball.vz <= 0) {
+    return { hit: false, newBall: ball }
   }
-  return predictedX
+
+  const hitPlaneZ = OPPONENT_PADDLE_Z
+
+  const crossedPlane = (prevBallZ <= hitPlaneZ && ball.z >= hitPlaneZ - 14) ||
+                       (ball.z >= hitPlaneZ - 12 && ball.z <= hitPlaneZ + 15)
+
+  if (!crossedPlane) {
+    return { hit: false, newBall: ball }
+  }
+
+  const dx = ball.x - opponent.x
+  const dy = ball.y - opponent.y
+
+  const normX = dx / (PADDLE_RADIUS_X * 1.25)
+  const normY = dy / (PADDLE_RADIUS_Y * 1.25)
+  const distSq = normX * normX + normY * normY
+
+  if (distSq > 1.25) {
+    return { hit: false, newBall: ball }
+  }
+
+  // Бот нацеливает мяч обратно на половину игрока
+  // Целевая точка: центр или случайное смещение
+  const targetX = (Math.random() - 0.5) * (TABLE_WIDTH * 0.7 * accuracy)
+  const tTravel = 0.75 + Math.random() * 0.25
+
+  const newVX = (targetX - ball.x) / tTravel
+  const newVZ = -(220 + power * 150)
+  const newVY = 110 + (Math.random() * 40)
+
+  const newBall: TennisBall = {
+    ...ball,
+    z: hitPlaneZ - 2,
+    vx: Math.max(-220, Math.min(220, newVX)),
+    vy: newVY,
+    vz: newVZ,
+    spinX: (Math.random() - 0.5) * 0.8,
+    spinY: 0.3 + power * 0.5,
+    bouncesPlayer: 0,
+    bouncesOpponent: 0,
+    isSmash: power > 0.85 && Math.random() > 0.6,
+  }
+
+  return { hit: true, newBall }
 }
 
-/** Spring-lerp для плавного движения ракетки */
-export function springLerp(current: number, target: number, stiffness: number, dt: number): number {
-  return current + (target - current) * Math.min(1, stiffness * dt)
+/** Пружинная интерполяция с учетом инерции */
+export function springLerp(current: number, target: number, speed: number, dt: number): number {
+  const diff = target - current
+  const step = diff * Math.min(1.0, speed * dt)
+  return current + step
 }

@@ -1,47 +1,59 @@
-// Типы для игры Теннис (Tennis)
+// Типы для игры Теннис / Пинг-понг (вид от первого лица / 3D перспектива стола)
 
 export type TennisPhase = 'serve' | 'rally' | 'pointEnd' | 'gameEnd'
 export type TennisDifficulty = 'easy' | 'medium' | 'hard'
 export type HitBy = 'player' | 'opponent' | null
 
-export interface TennisBall {
-  x: number    // горизонталь на корте (0..COURT_W)
-  y: number    // глубина корта (0..COURT_H) — 0 у игрока, COURT_H у соперника
-  z: number    // высота над кортом (>= 0)
-  vx: number   // горизонтальная скорость
-  vy: number   // скорость по глубине корта
-  vz: number   // вертикальная скорость (вверх)
-  spin: number // спин: >0 топспин (мяч ускоряется вперёд при отскоке), <0 слайс
+export interface Vector3D {
+  x: number // горизонталь стола (-TABLE_WIDTH/2 .. +TABLE_WIDTH/2)
+  y: number // высота над столом (0 = поверхность стола, >0 в воздухе)
+  z: number // глубина (0 = ближний край игрока, NET_Z = сетка, TABLE_LENGTH = край соперника)
+}
+
+export interface TennisBall extends Vector3D {
+  vx: number
+  vy: number
+  vz: number
+  spinX: number // боковое вращение
+  spinY: number // верхнее/нижнее вращение (топспин / подрезка)
+  bouncesPlayer: number   // число отскоков на половине игрока после последнего удара
+  bouncesOpponent: number // число отскоков на половине соперника после последнего удара
+  isSmash?: boolean
 }
 
 export interface TennisPlayer {
-  x: number       // текущая X позиция (центр ракетки)
-  y: number       // текущая Y позиция
-  targetX: number // цель (позиция мыши)
+  x: number       // 3D координата X
+  y: number       // 3D координата Y (высота ракетки)
+  z: number       // 3D координата Z (~ 0)
+  targetX: number
   targetY: number
-  vx: number      // скорость ракетки (для расчёта удара)
+  vx: number      // скорость движения ракетки
   vy: number
-  swingPower: number // 0..1, возрастает при быстром движении
-  isHitting: boolean // true сразу после контакта (для анимации)
-  hitTimer: number   // убывающий таймер удара (для squash&stretch)
+  tiltX: number   // угол наклона по X
+  tiltY: number   // угол наклона по Y
+  swingPower: number // 0..1
+  isHitting: boolean
+  hitTimer: number
 }
 
 export interface TennisOpponent {
   x: number
   y: number
+  z: number
   targetX: number
   targetY: number
-  reactionTimer: number // задержка реакции бота
+  vx: number
+  vy: number
+  reactionTimer: number
+  isHitting: boolean
+  hitTimer: number
 }
 
 export interface TennisScore {
-  // теннисные очки 0/15/30/40/advantage
-  playerPoints: number   // 0,1,2,3,4 (4=advantage)
+  playerPoints: number   // 0, 15, 30, 40, A
   opponentPoints: number
-  // геймы в текущем сете
   playerGames: number
   opponentGames: number
-  // сеты
   playerSets: number
   opponentSets: number
 }
@@ -54,69 +66,66 @@ export interface TennisState {
   score: TennisScore
   lastHitBy: HitBy
   serveBy: 'player' | 'opponent'
-  // эффекты: медленное воспроизведение на выигрышном очке
-  slowMotionTimer: number // ms, убывает каждый тик
-  // ошибка: попал в сетку или аут
-  faultReason: 'net' | 'out' | 'double' | null
+  slowMotionTimer: number
+  faultReason: 'net' | 'out' | 'double_bounce' | 'miss' | null
   pointWinner: 'player' | 'opponent' | null
-  // суммарное время игры
   elapsedMs: number
   difficulty: TennisDifficulty
-  // флаг окончания матча
   matchOver: boolean
   matchWinner: 'player' | 'opponent' | null
+  rallyCount: number
 }
 
 export interface TennisInput {
-  mouseX: number   // нормализованные 0..1 координаты в рамке корта
-  mouseY: number
-  mouseVX: number  // скорость мыши (пикс/сек в нормализованных ед.)
-  mouseVY: number
+  normalizedX: number // 0..1 по ширине экрана
+  normalizedY: number // 0..1 по высоте экрана
+  pointerVX: number   // скорость указателя
+  pointerVY: number
 }
 
 export interface TennisOptions {
   difficulty?: TennisDifficulty
 }
 
-// Размеры виртуального корта (безразмерные единицы)
-export const COURT_W = 400
-export const COURT_H = 600
+// ─── Геометрия 3D стола и камеры ─────────────────────────────────────────────
 
-// Позиции по глубине
-export const NET_Y = COURT_H / 2          // сетка посередине
-export const PLAYER_BASE_Y = COURT_H * 0.82 // исходная Y игрока
-export const OPPONENT_BASE_Y = COURT_H * 0.18 // исходная Y соперника
+export const TABLE_WIDTH = 152.5    // ширина стола (см)
+export const TABLE_LENGTH = 274.0   // длина стола (см)
+export const NET_Z = TABLE_LENGTH / 2 // 137.0 см (центр стола)
+export const NET_HEIGHT = 15.25     // высота сетки (см)
+export const BALL_RADIUS = 3.0      // радиус мяча (см)
 
-// Размеры ракетки
-export const PADDLE_W = 60
-export const PADDLE_H = 12
+// Ракетки
+export const PADDLE_RADIUS_X = 14.0 // полуширина ракетки
+export const PADDLE_RADIUS_Y = 16.0 // полувысота ракетки
+export const PLAYER_PADDLE_Z = 0    // плоскость ракетки игрока
+export const OPPONENT_PADDLE_Z = TABLE_LENGTH + 12 // за дальним краем стола
 
-// Мяч
-export const BALL_R = 8
+// Камера (от первого лица над ближним краем)
+export const CAMERA_X = 0
+export const CAMERA_Y = 50.0  // высота взгляда над столом
+export const CAMERA_Z = -52.0 // расстояние назад от ближнего края
+export const FOCAL_LENGTH = 260.0
 
-// Высота сетки
-export const NET_HEIGHT = 40
-
-// Количество сетов для победы в матче
-export const SETS_TO_WIN = 2  // лучший из 3 сетов
+export const SETS_TO_WIN = 2
 
 export const TENNIS_DIFFICULTY_CONFIG: Record<
   TennisDifficulty,
   {
     label: string
-    opponentSpeed: number    // скорость перемещения бота (ед/сек)
+    opponentSpeed: number    // скорость перемещения (см/с)
     opponentReaction: number // задержка реакции (мс)
-    opponentAccuracy: number // 0..1 — точность прицела
-    opponentPower: number    // 0..1 — сила удара
+    opponentAccuracy: number // 0..1
+    opponentPower: number    // 0..1
   }
 > = {
-  easy:   { label: 'Лёгкий',  opponentSpeed: 180, opponentReaction: 400, opponentAccuracy: 0.45, opponentPower: 0.5 },
-  medium: { label: 'Средний', opponentSpeed: 260, opponentReaction: 220, opponentAccuracy: 0.70, opponentPower: 0.7 },
-  hard:   { label: 'Сложный', opponentSpeed: 350, opponentReaction: 80,  opponentAccuracy: 0.92, opponentPower: 0.9 },
+  easy:   { label: 'Лёгкий',  opponentSpeed: 160, opponentReaction: 380, opponentAccuracy: 0.50, opponentPower: 0.55 },
+  medium: { label: 'Средний', opponentSpeed: 240, opponentReaction: 180, opponentAccuracy: 0.78, opponentPower: 0.75 },
+  hard:   { label: 'Сложный', opponentSpeed: 340, opponentReaction: 70,  opponentAccuracy: 0.94, opponentPower: 0.95 },
 }
 
-/** Преобразование tennis-очков в строку */
+/** Преобразование теннисных очков в строку (15, 30, 40, A) */
 export function pointsToLabel(n: number): string {
   const map: Record<number, string> = { 0: '0', 1: '15', 2: '30', 3: '40', 4: 'A' }
-  return map[n] ?? '?'
+  return map[n] ?? `${n}`
 }

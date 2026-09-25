@@ -133,6 +133,80 @@ class SoundEffectsManager {
       osc.stop(ctx.currentTime + 0.35)
     } catch {}
   }
+
+  // Звук удара ракеткой по мячу (настольный теннис / теннис)
+  public playPaddleHit(isSmash = false): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = isSmash ? 'triangle' : 'sine'
+      const startFreq = isSmash ? 880 : 540
+      const endFreq = isSmash ? 320 : 260
+      const duration = isSmash ? 0.08 : 0.05
+
+      osc.frequency.setValueAtTime(startFreq, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + duration)
+
+      const volume = isSmash ? 0.25 : 0.16
+      gain.gain.setValueAtTime(volume, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + duration)
+    } catch {}
+  }
+
+  // Звук отскока мяча от стола
+  public playTableBounce(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(750, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(420, ctx.currentTime + 0.035)
+
+      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.035)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.035)
+    } catch {}
+  }
+
+  // Звук касания сетки
+  public playNetHit(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(220, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(90, ctx.currentTime + 0.06)
+
+      gain.gain.setValueAtTime(0.14, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.06)
+    } catch {}
+  }
 }
 
 export const soundManager = new SoundEffectsManager()

@@ -1,5 +1,5 @@
-// Движок игры Теннис — реализует GameEngine<TennisState, TennisAction>
-// Все переходы состояния — чистые функции без побочных эффектов
+// Движок игры Теннис (3D от первого лица) — реализует GameEngine<TennisState, TennisAction>
+// Чистые функции перехода состояний, правила розыгрыша очков и геймов
 
 import type { GameEngine } from '../_lib/types'
 import type {
@@ -8,23 +8,19 @@ import type {
   TennisOptions,
   TennisPlayer,
   TennisScore,
+  TennisBall,
 } from './types'
 import {
-  COURT_W,
-  COURT_H,
-  NET_Y,
-  PLAYER_BASE_Y,
-  OPPONENT_BASE_Y,
-  PADDLE_W,
-  BALL_R,
+  TABLE_WIDTH,
+  TABLE_LENGTH,
+  NET_Z,
+  PLAYER_PADDLE_Z,
   SETS_TO_WIN,
 } from './types'
-import { stepBall, applyHit, springLerp } from './physics'
-import { tickOpponent, createInitialOpponent } from './ai'
+import { stepBall3D, checkPlayerHit, springLerp } from './physics'
+import { tickOpponent3D, createInitialOpponent } from './ai'
 
-// ─── Вспомогательные ────────────────────────────────────────────────────────
-
-function createInitialScore(): TennisScore {
+export function createInitialScore(): TennisScore {
   return {
     playerPoints: 0,
     opponentPoints: 0,
@@ -35,26 +31,49 @@ function createInitialScore(): TennisScore {
   }
 }
 
-function createServeBall(serveBy: 'player' | 'opponent'): TennisState['ball'] {
-  return {
-    x: COURT_W / 2,
-    y: serveBy === 'player' ? PLAYER_BASE_Y - 20 : OPPONENT_BASE_Y + 20,
-    z: 20,
-    vx: 0,
-    vy: 0,
-    vz: 0,
-    spin: 0,
+export function createServeBall(serveBy: 'player' | 'opponent'): TennisBall {
+  if (serveBy === 'player') {
+    return {
+      x: 0,
+      y: 26,
+      z: 15,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      spinX: 0,
+      spinY: 0,
+      bouncesPlayer: 0,
+      bouncesOpponent: 0,
+      isSmash: false,
+    }
+  } else {
+    return {
+      x: 0,
+      y: 30,
+      z: TABLE_LENGTH - 15,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      spinX: 0,
+      spinY: 0,
+      bouncesPlayer: 0,
+      bouncesOpponent: 0,
+      isSmash: false,
+    }
   }
 }
 
-function createInitialPlayer(): TennisPlayer {
+export function createInitialPlayer(): TennisPlayer {
   return {
-    x: COURT_W / 2,
-    y: PLAYER_BASE_Y,
-    targetX: COURT_W / 2,
-    targetY: PLAYER_BASE_Y,
+    x: 0,
+    y: 25,
+    z: PLAYER_PADDLE_Z,
+    targetX: 0,
+    targetY: 25,
     vx: 0,
     vy: 0,
+    tiltX: 0,
+    tiltY: 0,
     swingPower: 0,
     isHitting: false,
     hitTimer: 0,
@@ -62,10 +81,9 @@ function createInitialPlayer(): TennisPlayer {
 }
 
 /**
- * Начисляет очко winner'у и обновляет теннисный счёт (15/30/40/game с деюс).
- * Возвращает новый score, а также флаг выигрыша гейма/сета.
+ * Начисляет очко и обновляет теннисный счет (15/30/40/деюс/геймы/сеты)
  */
-function resolvePoint(
+export function resolvePoint(
   score: TennisScore,
   winner: 'player' | 'opponent'
 ): {
@@ -83,7 +101,6 @@ function resolvePoint(
     opponentSets,
   } = score
 
-  // Начисляем очко победителю
   if (winner === 'player') playerPoints++
   else opponentPoints++
 
@@ -91,38 +108,34 @@ function resolvePoint(
   let setWon = false
   let matchWon = false
 
-  // Логика гейма: побеждает тот, у кого >= 4 очков И разрыв >= 2
+  // Гейм: победа при >= 4 очках и разрыве >= 2
   const maxPts = Math.max(playerPoints, opponentPoints)
   const minPts = Math.min(playerPoints, opponentPoints)
-  const gameOver = maxPts >= 4 && maxPts - minPts >= 2
+  const isGameOver = maxPts >= 4 && maxPts - minPts >= 2
 
-  if (gameOver) {
+  if (isGameOver) {
     gameWon = true
     const gameWinner = playerPoints > opponentPoints ? 'player' : 'opponent'
     if (gameWinner === 'player') playerGames++
     else opponentGames++
 
-    // Сброс очков
     playerPoints = 0
     opponentPoints = 0
 
-    // Логика сета: 6 геймов с разрывом 2 (или тай-брейк при 6:6 — упрощённо первый до 7)
+    // Сет: до 6 геймов с разрывом 2
     const maxGames = Math.max(playerGames, opponentGames)
     const minGames = Math.min(playerGames, opponentGames)
-    const setOver =
-      (maxGames >= 6 && maxGames - minGames >= 2) || maxGames >= 7
+    const isSetOver = (maxGames >= 6 && maxGames - minGames >= 2) || maxGames >= 7
 
-    if (setOver) {
+    if (isSetOver) {
       setWon = true
       const setWinner = playerGames > opponentGames ? 'player' : 'opponent'
       if (setWinner === 'player') playerSets++
       else opponentSets++
 
-      // Сброс геймов
       playerGames = 0
       opponentGames = 0
 
-      // Победа в матче
       if (playerSets >= SETS_TO_WIN || opponentSets >= SETS_TO_WIN) {
         matchWon = true
       }
@@ -144,8 +157,6 @@ function resolvePoint(
   }
 }
 
-// ─── Тип действий ────────────────────────────────────────────────────────────
-
 export type TennisAction =
   | { type: 'serve' }
   | { type: 'tick'; dt: number; input: TennisInput }
@@ -154,12 +165,10 @@ export type TennisAction =
   | { type: 'pause' }
   | { type: 'resume' }
 
-// ─── Движок ──────────────────────────────────────────────────────────────────
-
 export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> = {
   createInitialState(opts: TennisOptions = {}): TennisState {
     const difficulty = opts.difficulty ?? 'medium'
-    const serveBy: 'player' | 'opponent' = Math.random() > 0.5 ? 'player' : 'opponent'
+    const serveBy: 'player' | 'opponent' = 'player'
     return {
       phase: 'serve',
       ball: createServeBall(serveBy),
@@ -175,34 +184,56 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
       difficulty,
       matchOver: false,
       matchWinner: null,
+      rallyCount: 0,
     }
   },
 
   applyAction(state: TennisState, action: TennisAction): TennisState {
-    // ── restart ──────────────────────────────────────────────────────────────
     if (action.type === 'restart') {
       return tennisEngine.createInitialState({ difficulty: state.difficulty })
     }
 
-    // ── setDifficulty ────────────────────────────────────────────────────────
     if (action.type === 'setDifficulty') {
       return tennisEngine.createInitialState({ difficulty: action.difficulty })
     }
 
-    // ── serve ────────────────────────────────────────────────────────────────
     if (action.type === 'serve') {
       if (state.phase !== 'serve') return state
 
       const isPlayer = state.serveBy === 'player'
-      const direction: 1 | -1 = isPlayer ? -1 : 1
-      const serveBall = applyHit(
-        { ...createServeBall(state.serveBy), z: 30 },
-        0,           // paddleVX
-        isPlayer ? 300 : -300, // paddleVY
-        0,           // hitOffsetX (центральная подача)
-        direction,
-        0.5          // средняя сила
-      )
+      // Начальная подача мяча
+      let serveBall: TennisBall
+      if (isPlayer) {
+        serveBall = {
+          x: state.player.x * 0.4,
+          y: 28,
+          z: 20,
+          vx: state.player.vx * 0.2,
+          vy: 110,
+          vz: 260,
+          spinX: 0,
+          spinY: 0.5,
+          bouncesPlayer: 0,
+          bouncesOpponent: 0,
+          isSmash: false,
+        }
+      } else {
+        // Подача соперника
+        serveBall = {
+          x: 0,
+          y: 30,
+          z: TABLE_LENGTH - 20,
+          vx: (Math.random() - 0.5) * 40,
+          vy: 110,
+          vz: -250,
+          spinX: 0,
+          spinY: 0.4,
+          bouncesPlayer: 0,
+          bouncesOpponent: 0,
+          isSmash: false,
+        }
+      }
+
       return {
         ...state,
         phase: 'rally',
@@ -210,142 +241,186 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
         lastHitBy: state.serveBy,
         faultReason: null,
         pointWinner: null,
+        rallyCount: 1,
       }
     }
 
-    // ── pause / resume ───────────────────────────────────────────────────────
-    if (action.type === 'pause') return { ...state, phase: state.phase === 'serve' ? 'serve' : state.phase }
-    if (action.type === 'resume') return state
+    if (action.type === 'pause' || action.type === 'resume') {
+      return state
+    }
 
-    // ── tick ─────────────────────────────────────────────────────────────────
     if (action.type === 'tick') {
-      if (state.phase === 'gameEnd') return state
-      if (state.matchOver) return state
+      if (state.matchOver || state.phase === 'gameEnd') return state
 
       const { dt, input } = action
-
-      // Slow-motion: когда таймер активен — замедляем dt
       const effectiveDt = state.slowMotionTimer > 0 ? dt * 0.35 : dt
       const newSlowTimer = Math.max(0, state.slowMotionTimer - dt * 1000)
 
-      let newState = { ...state, slowMotionTimer: newSlowTimer, elapsedMs: state.elapsedMs + dt * 1000 }
+      let newState: TennisState = {
+        ...state,
+        slowMotionTimer: newSlowTimer,
+        elapsedMs: state.elapsedMs + dt * 1000,
+      }
+
+      // Обновляем ракетку игрока по вводу мыши в любых фазах
+      const updatedPlayer = updatePlayerState(state.player, input, effectiveDt)
 
       if (state.phase === 'serve') {
-        // В фазе подачи только двигаем ракетку игрока
-        const { player } = updatePlayer(state.player, input, effectiveDt)
-        return { ...newState, player }
+        // В фазе подачи мяч парит перед подающим
+        const ball = createServeBall(state.serveBy)
+        if (state.serveBy === 'player') {
+          ball.x = updatedPlayer.x * 0.6
+          ball.y = updatedPlayer.y + 4
+        }
+        return {
+          ...newState,
+          player: updatedPlayer,
+          ball,
+        }
       }
 
       if (state.phase === 'pointEnd') {
-        // Ждём конца анимации (slowmotion завершится)
         if (newSlowTimer <= 0) {
-          // Начинаем следующую подачу
-          const nextServeBy: 'player' | 'opponent' =
-            state.pointWinner === 'player' ? state.serveBy : (state.serveBy === 'player' ? 'opponent' : 'player')
+          // Переход к следующей подаче
+          const nextServe = state.pointWinner === 'player' ? 'player' : 'opponent'
           return {
             ...newState,
             phase: 'serve',
-            ball: createServeBall(nextServeBy),
-            serveBy: nextServeBy,
+            serveBy: nextServe,
+            ball: createServeBall(nextServe),
+            lastHitBy: null,
             faultReason: null,
             pointWinner: null,
-            player: { ...state.player, isHitting: false, hitTimer: 0 },
+            player: { ...updatedPlayer, isHitting: false, hitTimer: 0 },
+            rallyCount: 0,
           }
         }
-        // Продолжаем физику мяча в замедлении (красивый эффект)
-        const physResult = stepBall(state.ball, effectiveDt)
-        return { ...newState, ball: physResult.ball }
-      }
-
-      // ── rally ────────────────────────────────────────────────────────────────
-      // 1. Обновляем игрока и проверяем удар
-      const { player, didHit: playerHit, hitBall: playerHitBall } = updatePlayer(
-        state.player,
-        input,
-        effectiveDt,
-        state.ball,
-        state.lastHitBy
-      )
-
-      let ball = playerHit && playerHitBall ? playerHitBall : state.ball
-      let lastHitBy = playerHit ? 'player' as const : state.lastHitBy
-
-      // 2. Обновляем бота (только если игрок не только что ударил)
-      let opponent = state.opponent
-      if (!playerHit) {
-        const botResult = tickOpponent({ ...state, lastHitBy }, effectiveDt)
-        opponent = botResult.opponent
-        if (botResult.hitBall) {
-          ball = botResult.hitBall
-          lastHitBy = 'opponent'
+        // Замедленное движение мяча для красивого завершения очка
+        const physResult = stepBall3D(state.ball, effectiveDt)
+        return {
+          ...newState,
+          player: updatedPlayer,
+          ball: physResult.ball,
         }
       }
 
-      // 3. Шаг физики мяча
-      const physResult = stepBall(ball, effectiveDt)
+      // ── ФАЗА RALLY ─────────────────────────────────────────────────────────
+      const prevBallZ = state.ball.z
+
+      // 1. Проверяем удар ракеткой игрока
+      const playerHitCheck = checkPlayerHit(state.ball, prevBallZ, updatedPlayer)
+      let ball = playerHitCheck.hit ? playerHitCheck.newBall : state.ball
+      let lastHitBy = playerHitCheck.hit ? 'player' as const : state.lastHitBy
+      let rallyCount = state.rallyCount + (playerHitCheck.hit ? 1 : 0)
+
+      if (playerHitCheck.hit) {
+        updatedPlayer.isHitting = true
+        updatedPlayer.hitTimer = 220
+      }
+
+      // 2. Обновляем ракетку соперника (бота)
+      const botResult = tickOpponent3D({ ...state, lastHitBy, rallyCount }, prevBallZ, effectiveDt)
+      const opponent = botResult.opponent
+      if (botResult.hitBall) {
+        ball = botResult.hitBall
+        lastHitBy = 'opponent'
+        rallyCount++
+      }
+
+      // 3. Шаг физики полета мяча в 3D
+      const physResult = stepBall3D(ball, effectiveDt)
       ball = physResult.ball
 
-      // 4. Определяем, кто выиграл очко
-      let faultReason: TennisState['faultReason'] = null
+      // 4. Определение исхода розыгрыша (очко, аут, сетка, двойной отскок)
       let pointWinner: 'player' | 'opponent' | null = null
+      let faultReason: TennisState['faultReason'] = null
 
+      // А) Попадание в сетку
       if (physResult.hitNet) {
-        // Мяч попал в сетку
         faultReason = 'net'
         pointWinner = lastHitBy === 'player' ? 'opponent' : 'player'
-      } else if (physResult.outOfBounds) {
-        // Мяч вышел за пределы корта по Y
-        faultReason = 'out'
-        if (ball.y < 0) {
-          // Вылетел за базовую соперника → очко игроку (если последним бил игрок, иначе двойная ошибка)
-          pointWinner = lastHitBy === 'player' ? 'player' : 'opponent'
-        } else {
-          // Вылетел за базовую игрока → очко сопернику
-          pointWinner = lastHitBy === 'opponent' ? 'opponent' : 'player'
-        }
-      } else if (physResult.bounced && lastHitBy !== null) {
-        // Мяч отскочил на земле.
-        // В теннисе: если мяч отскочил на стороне СОПЕРНИКА — победа атакующего.
-        // NET_Y делит корт: y <= NET_Y → сторона соперника, y > NET_Y → сторона игрока
-        const bouncedOnOpponentSide = ball.y <= NET_Y
-        const bouncedOnPlayerSide = ball.y > NET_Y
-
-        if (bouncedOnOpponentSide && lastHitBy === 'player') {
-          pointWinner = 'player'
-        } else if (bouncedOnPlayerSide && lastHitBy === 'opponent') {
-          pointWinner = 'opponent'
-        }
-        // Если отскок на своей стороне (игрок не успел отбить после отскока к себе)
-        // — правило двойного отскока. Обрабатывается через outOfBounds когда мяч улетает.
       }
 
+      // Б) Двойной отскок на столе
+      if (!pointWinner) {
+        if (ball.bouncesPlayer >= 2) {
+          // Мяч дважды отскочил на половине игрока — игрок не отбил!
+          pointWinner = 'opponent'
+          faultReason = 'double_bounce'
+        } else if (ball.bouncesOpponent >= 2) {
+          // Мяч дважды отскочил на половине соперника — очко игроку!
+          pointWinner = 'player'
+          faultReason = 'double_bounce'
+        }
+      }
+
+      // В) Мяч улетел за пределы стола и упал ниже уровня стола (y < -15)
+      if (!pointWinner && ball.y < -15) {
+        if (lastHitBy === 'player') {
+          // Если игрок ударил:
+          // Если мяч отскочил на стороне соперника хотя бы 1 раз — победа игрока!
+          if (ball.bouncesOpponent >= 1) {
+            pointWinner = 'player'
+          } else {
+            // Мяч улетел в аут без отскока на половине соперника
+            pointWinner = 'opponent'
+            faultReason = 'out'
+          }
+        } else if (lastHitBy === 'opponent') {
+          // Если соперник ударил:
+          if (ball.bouncesPlayer >= 1) {
+            pointWinner = 'opponent'
+          } else {
+            pointWinner = 'player'
+            faultReason = 'out'
+          }
+        }
+      }
+
+      // Г) Мяч пролетел далеко за спину игроку (z < -30)
+      if (!pointWinner && ball.z < -30 && ball.vz < 0) {
+        pointWinner = 'opponent'
+        faultReason = 'miss'
+      }
+
+      // Д) Мяч улетел далеко за стол соперника (z > TABLE_LENGTH + 60)
+      if (!pointWinner && ball.z > TABLE_LENGTH + 60 && ball.vz > 0) {
+        if (lastHitBy === 'player' && ball.bouncesOpponent >= 1) {
+          pointWinner = 'player'
+        } else {
+          pointWinner = 'opponent'
+          faultReason = 'out'
+        }
+      }
+
+      // ── НАЧИСЛЕНИЕ ОЧКА ───────────────────────────────────────────────────
       if (pointWinner) {
         const { score, matchWon } = resolvePoint(state.score, pointWinner)
-        const matchWinner = matchWon
-          ? (pointWinner === 'player' ? 'player' as const : 'opponent' as const)
-          : null
+        const matchWinner = matchWon ? pointWinner : null
         return {
           ...newState,
           ball,
-          player,
+          player: updatedPlayer,
           opponent,
           lastHitBy,
           score,
           faultReason,
           pointWinner,
           phase: matchWon ? 'gameEnd' : 'pointEnd',
-          slowMotionTimer: 600, // 600 мс замедления
+          slowMotionTimer: 650, // эффект замедления на победном очке
           matchOver: matchWon,
           matchWinner,
+          rallyCount,
         }
       }
 
       return {
         ...newState,
         ball,
-        player,
+        player: updatedPlayer,
         opponent,
         lastHitBy,
+        rallyCount,
       }
     }
 
@@ -365,7 +440,6 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
   },
 
   getScore(state: TennisState): number {
-    // Возвращаем число выигранных сетов игрока * 100 + геймов * 10 + очков
     return (
       state.score.playerSets * 100 +
       state.score.playerGames * 10 +
@@ -375,83 +449,54 @@ export const tennisEngine: GameEngine<TennisState, TennisAction, TennisOptions> 
 
   hashState(state: TennisState): string {
     const { ball, score } = state
-    return `${Math.round(ball.x)},${Math.round(ball.y)},${Math.round(ball.z)}:${score.playerSets}-${score.opponentSets}`
+    return `${Math.round(ball.x)},${Math.round(ball.y)},${Math.round(ball.z)}:${score.playerPoints}-${score.opponentPoints}`
   },
 }
 
-// ─── Вспомогательные для обновления игрока ───────────────────────────────────
-
-const PLAYER_ZONE_MIN_Y = COURT_H * 0.55
-const PLAYER_ZONE_MAX_Y = COURT_H - 10
-const PADDLE_H_HALF = 8
-
-function updatePlayer(
+/**
+ * Плавное обновление координат и наклона ракетки игрока
+ */
+function updatePlayerState(
   player: TennisPlayer,
   input: TennisInput,
-  dt: number,
-  ball?: TennisState['ball'],
-  lastHitBy?: TennisState['lastHitBy']
-): { player: TennisPlayer; didHit: boolean; hitBall: TennisState['ball'] | null } {
-  // Целевая позиция из мыши (денормализованная)
-  const rawTargetX = input.mouseX * COURT_W
-  const rawTargetY = PLAYER_ZONE_MIN_Y + input.mouseY * (PLAYER_ZONE_MAX_Y - PLAYER_ZONE_MIN_Y)
+  dt: number
+): TennisPlayer {
+  // Нормализованные координаты (0..1) проецируем на 3D диапазон стола
+  // Ширина стола по X: от -85 до +85 см
+  const targetX = (input.normalizedX - 0.5) * (TABLE_WIDTH * 1.25)
+  // Высота по Y: от 6 до 55 см над столом
+  const targetY = 55 - input.normalizedY * 48
 
-  const targetX = Math.max(PADDLE_W / 2, Math.min(COURT_W - PADDLE_W / 2, rawTargetX))
-  const targetY = Math.max(PLAYER_ZONE_MIN_Y, Math.min(PLAYER_ZONE_MAX_Y, rawTargetY))
-
-  // Пружинная интерполяция ракетки (stiffness = 10 → плавная инерция)
-  const stiffness = 10
+  // Пружинная интерполяция с высокой отзывчивостью (stiffness = 24 для мгновенного отклика без задержек)
+  const stiffness = 26
   const newX = springLerp(player.x, targetX, stiffness, dt)
   const newY = springLerp(player.y, targetY, stiffness, dt)
 
-  // Скорость ракетки
-  const vx = (newX - player.x) / dt
-  const vy = (newY - player.y) / dt
+  // Скорость ракетки в см/с
+  const vx = (newX - player.x) / (dt || 0.016)
+  const vy = (newY - player.y) / (dt || 0.016)
 
-  // Сила удара из скорости мыши
-  const mouseSpeed = Math.sqrt(input.mouseVX ** 2 + input.mouseVY ** 2)
-  const swingPower = Math.min(1, mouseSpeed / 800)
+  // Наклон ракетки при взмахе
+  const tiltX = Math.max(-0.45, Math.min(0.45, (vx / 400) * 0.45))
+  const tiltY = Math.max(-0.4, Math.min(0.4, (vy / 350) * 0.35))
 
-  // Убывание hitTimer
+  const speed = Math.sqrt(vx * vx + vy * vy)
+  const swingPower = Math.min(1.0, speed / 550)
+
   const hitTimer = Math.max(0, player.hitTimer - dt * 1000)
-  const isHitting = hitTimer > 0
 
-  let didHit = false
-  let hitBall: TennisState['ball'] | null = null
-
-  // Проверяем контакт с мячом (только в фазе rally, только если не только что ударили)
-  if (ball && lastHitBy !== 'player') {
-    const CONTACT_R = PADDLE_W / 2 + BALL_R + 4
-    const dx = ball.x - newX
-    const dy = ball.y - newY
-    const dist = Math.sqrt(dx * dx + dy * dy)
-
-    if (dist < CONTACT_R && ball.z <= 40 && ball.z >= -5) {
-      // Удар! Вычисляем вектор
-      const hitOffsetX = Math.max(-1, Math.min(1, dx / (PADDLE_W / 2)))
-      hitBall = applyHit(
-        ball,
-        vx,           // скорость ракетки по X
-        vy,           // скорость ракетки по Y
-        hitOffsetX,
-        -1,           // игрок бьёт вверх (в сторону соперника, direction=-1 → vy отрицательный)
-        swingPower
-      )
-      didHit = true
-    }
-  }
-
-  const newPlayer: TennisPlayer = {
+  return {
     x: newX,
     y: newY,
+    z: PLAYER_PADDLE_Z,
     targetX,
     targetY,
     vx,
     vy,
+    tiltX,
+    tiltY,
     swingPower,
-    isHitting: didHit ? true : isHitting,
-    hitTimer: didHit ? 200 : hitTimer, // 200 мс анимация удара
+    isHitting: hitTimer > 0,
+    hitTimer,
   }
-
-  return { player: newPlayer, didHit, hitBall }
 }

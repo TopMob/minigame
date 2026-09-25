@@ -1,104 +1,122 @@
-// AI-соперник для тенниса — реактивный бот с тремя уровнями сложности
+// ИИ-соперник для настольного тенниса в 3D от первого лица
 
 import type { TennisState, TennisOpponent, TennisBall } from './types'
-import { COURT_W, COURT_H, OPPONENT_BASE_Y, PADDLE_W, TENNIS_DIFFICULTY_CONFIG } from './types'
-import { predictLandingX, applyHit, springLerp } from './physics'
+import {
+  TABLE_WIDTH,
+  TABLE_LENGTH,
+  OPPONENT_PADDLE_Z,
+  TENNIS_DIFFICULTY_CONFIG,
+} from './types'
+import { checkOpponentHit, springLerp } from './physics'
+
+export interface OpponentTickResult {
+  opponent: TennisOpponent
+  hitBall: TennisBall | null
+}
 
 /**
- * Обновляет состояние соперника-бота за один тик.
- * Чистая функция: (state, dt) => TennisOpponent + новый мяч (если был удар).
+ * Обновление состояния ракетки соперника в 3D
  */
-export function tickOpponent(
+export function tickOpponent3D(
   state: TennisState,
+  prevBallZ: number,
   dt: number
-): { opponent: TennisOpponent; hitBall: TennisBall | null } {
+): OpponentTickResult {
   const { opponent, ball, difficulty } = state
   const config = TENNIS_DIFFICULTY_CONFIG[difficulty]
 
-  let { x, y, targetX, targetY, reactionTimer } = opponent
+  let { x, y, targetX, targetY, reactionTimer, hitTimer } = opponent
   let hitBall: TennisBall | null = null
 
-  // Уменьшаем таймер реакции
+  // Убывание таймеров
   reactionTimer -= dt * 1000
-  if (reactionTimer < 0) reactionTimer = 0
+  hitTimer = Math.max(0, hitTimer - dt * 1000)
 
-  // Бот двигается только в своей зоне (верхняя треть)
-  const botZoneMinY = 0
-  const botZoneMaxY = COURT_H * 0.4
+  const isBallComingToBot = ball.vz > 0
 
-  // Обновляем цель только если таймер реакции истёк
-  if (reactionTimer <= 0) {
-    const isBallComingToBot = ball.vy < 0 // мяч летит в сторону бота
+  if (isBallComingToBot) {
+    if (reactionTimer <= 0) {
+      // Предсказываем точку прибытия мяча к плоскости ракетки бота
+      const remainingZ = OPPONENT_PADDLE_Z - ball.z
+      const timeToPlane = remainingZ / (ball.vz || 1)
 
-    if (isBallComingToBot) {
-      // Предсказываем точку приземления
-      const predictedX = predictLandingX(ball, OPPONENT_BASE_Y)
-      // Добавляем шум реакции в зависимости от сложности
-      const noise = (1 - config.opponentAccuracy) * COURT_W * 0.35
-      targetX = predictedX + (Math.random() - 0.5) * noise
-      targetY = OPPONENT_BASE_Y + (Math.random() - 0.5) * 30 * (1 - config.opponentAccuracy)
-    } else {
-      // Мяч не летит к боту — возвращаемся к центру
-      targetX = COURT_W / 2
-      targetY = OPPONENT_BASE_Y
+      let predX = ball.x + ball.vx * timeToPlane
+      // Ограничиваем шум точности
+      const inaccuracy = (1 - config.opponentAccuracy) * (TABLE_WIDTH * 0.28)
+      predX += (Math.random() - 0.5) * inaccuracy
+
+      // Ограничиваем в пределах стола
+      const halfW = TABLE_WIDTH / 2 + 10
+      targetX = Math.max(-halfW, Math.min(halfW, predX))
+
+      // Высота ракетки: мяч обычно на высоте отскока 15-35 см
+      const predY = Math.max(12, Math.min(45, ball.y + 5 + (Math.random() - 0.5) * 8))
+      targetY = predY
+
+      // Следующий пересчет реакции
+      reactionTimer = config.opponentReaction * (0.8 + Math.random() * 0.4)
     }
-
-    // Ограничиваем зону
-    targetX = Math.max(PADDLE_W / 2, Math.min(COURT_W - PADDLE_W / 2, targetX))
-    targetY = Math.max(botZoneMinY, Math.min(botZoneMaxY, targetY))
-
-    // Перезапускаем таймер реакции (случайное время в диапазоне)
-    reactionTimer = config.opponentReaction * (0.7 + Math.random() * 0.6)
+  } else {
+    // Мяч летит к игроку: возвращаемся в центр стола
+    targetX = 0
+    targetY = 22
   }
 
-  // Движение к цели через spring-lerp
-  const stiffness = config.opponentSpeed / Math.max(1, Math.hypot(targetX - x, targetY - y))
-  x = springLerp(x, targetX, Math.min(stiffness, 12), dt)
-  y = springLerp(y, targetY, Math.min(stiffness, 12), dt)
+  // Плавное движение к целевой точке с ограничением скорости бота
+  const moveSpeed = config.opponentSpeed / 18
+  const newX = springLerp(x, targetX, moveSpeed, dt)
+  const newY = springLerp(y, targetY, moveSpeed, dt)
 
-  // Ограничение по зоне
-  x = Math.max(PADDLE_W / 2, Math.min(COURT_W - PADDLE_W / 2, x))
-  y = Math.max(botZoneMinY, Math.min(botZoneMaxY, y))
+  const vx = (newX - x) / (dt || 0.016)
+  const vy = (newY - y) / (dt || 0.016)
 
-  // Проверяем контакт мяча с ракеткой бота
-  const PADDLE_H_BOT = 10
-  const canHit =
-    state.lastHitBy !== 'opponent' &&
-    ball.z <= 45 &&   // мяч достаточно низко
-    ball.z >= -5 &&
-    Math.abs(ball.x - x) < (PADDLE_W / 2 + 8) &&
-    Math.abs(ball.y - y) < (PADDLE_H_BOT + 8) &&
-    ball.vy < 0       // мяч летит к боту
+  const updatedOpponent: TennisOpponent = {
+    x: newX,
+    y: newY,
+    z: OPPONENT_PADDLE_Z,
+    targetX,
+    targetY,
+    vx,
+    vy,
+    reactionTimer,
+    isHitting: hitTimer > 0,
+    hitTimer,
+  }
 
-  if (canHit) {
-    // Вычисляем вектор удара
-    const hitOffsetX = Math.max(-1, Math.min(1, (ball.x - x) / (PADDLE_W / 2)))
-    const power = config.opponentPower * (0.8 + Math.random() * 0.2)
+  // Проверяем возможность удара
+  if (state.lastHitBy !== 'opponent' && state.phase === 'rally') {
+    const hitCheck = checkOpponentHit(
+      ball,
+      prevBallZ,
+      updatedOpponent,
+      config.opponentAccuracy,
+      config.opponentPower
+    )
 
-    // Небольшой разброс по X для цели удара (не идеальный прицел)
-    const aimNoise = (1 - config.opponentAccuracy) * 80
-    const aimX = COURT_W / 2 + (Math.random() - 0.5) * (COURT_W * 0.5) + (Math.random() - 0.5) * aimNoise
-
-    // Скорость ракетки бота в момент удара
-    const paddleVX = (aimX - ball.x) * 2
-    const paddleVY = 200 + power * 300
-
-    hitBall = applyHit(ball, paddleVX, paddleVY, hitOffsetX, 1, power)
+    if (hitCheck.hit) {
+      hitBall = hitCheck.newBall
+      updatedOpponent.isHitting = true
+      updatedOpponent.hitTimer = 220
+    }
   }
 
   return {
-    opponent: { x, y, targetX, targetY, reactionTimer },
+    opponent: updatedOpponent,
     hitBall,
   }
 }
 
-/** Создаёт начальное состояние бота */
 export function createInitialOpponent(): TennisOpponent {
   return {
-    x: COURT_W / 2,
-    y: OPPONENT_BASE_Y,
-    targetX: COURT_W / 2,
-    targetY: OPPONENT_BASE_Y,
+    x: 0,
+    y: 22,
+    z: OPPONENT_PADDLE_Z,
+    targetX: 0,
+    targetY: 22,
+    vx: 0,
+    vy: 0,
     reactionTimer: 0,
+    isHitting: false,
+    hitTimer: 0,
   }
 }
