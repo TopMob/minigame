@@ -13,20 +13,7 @@ import {
   type GameRecord,
 } from '@/lib/storage/records'
 import { formatTimeMMSS } from '@/lib/utils'
-
-interface GameTab {
-  id: string
-  name: string
-  icon: string
-  path: string
-}
-
-const GAMES: GameTab[] = [
-  { id: 'sudoku', name: 'Судоку', icon: '🔢', path: '/sudoku' },
-  { id: '2048', name: '2048', icon: '🧮', path: '/2048' },
-  { id: 'snake', name: 'Змейка', icon: '🐍', path: '/snake' },
-  { id: 'minesweeper', name: 'Сапёр', icon: '💣', path: '/minesweeper' },
-]
+import { getActiveGames, getGameById } from '@/games/registry'
 
 const DIFFICULTY_LABELS: Record<string, string> = {
   easy: 'Лёгкий',
@@ -44,15 +31,9 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   classic: 'text-violet-500 bg-violet-500/10 border-violet-500/20',
 }
 
-const GAME_NAMES: Record<string, { name: string; icon: string }> = {
-  sudoku: { name: 'Судоку', icon: '🔢' },
-  2048: { name: '2048', icon: '🧮' },
-  snake: { name: 'Змейка', icon: '🐍' },
-  minesweeper: { name: 'Сапёр', icon: '💣' },
-}
-
 export default function LeaderboardPage() {
-  const [selectedGame, setSelectedGame] = useState<string>('sudoku')
+  const activeGames = getActiveGames()
+  const [selectedGame, setSelectedGame] = useState<string>(() => activeGames[0]?.id || 'sudoku')
   const [allRecords, setAllRecords] = useState<GameRecord[]>([])
   const [stats, setStats] = useState<DifficultyStats[]>([])
 
@@ -64,7 +45,12 @@ export default function LeaderboardPage() {
     return () => cancelAnimationFrame(frame)
   }, [selectedGame])
 
-  const currentGame = GAMES.find((g) => g.id === selectedGame) || GAMES[0]
+  const currentGame = activeGames.find((g) => g.id === selectedGame) || activeGames[0] || {
+    id: 'sudoku',
+    name: 'Судоку',
+    icon: '🔢',
+    path: '/sudoku',
+  }
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8 sm:py-10 space-y-8 sm:space-y-10">
@@ -90,7 +76,7 @@ export default function LeaderboardPage() {
 
       {/* Переключатель игр */}
       <div className="flex flex-wrap gap-2">
-        {GAMES.map((game) => (
+        {activeGames.map((game) => (
           <Button
             key={game.id}
             variant={selectedGame === game.id ? 'default' : 'outline'}
@@ -187,7 +173,7 @@ export default function LeaderboardPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {allRecords.slice(0, 15).map((r) => {
-                  const meta = GAME_NAMES[r.gameId] || { name: r.gameId, icon: '🎮' }
+                  const meta = getGameById(r.gameId) || { name: r.gameId, icon: '🎮' }
                   return (
                     <tr key={r.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-medium">

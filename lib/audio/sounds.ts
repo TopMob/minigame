@@ -134,6 +134,48 @@ class SoundEffectsManager {
     } catch {}
   }
 
+  // Звук хода / клика по клетке
+  public playClick(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(540, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(280, ctx.currentTime + 0.05)
+      gain.gain.setValueAtTime(0.09, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.05)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.05)
+    } catch {}
+  }
+
+  // Звук ничьей
+  public playDraw(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(370, ctx.currentTime)
+      osc.frequency.setValueAtTime(330, ctx.currentTime + 0.1)
+      gain.gain.setValueAtTime(0.1, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.22)
+    } catch {}
+  }
+
   // Звук удара ракеткой по мячу (настольный теннис / теннис)
   public playPaddleHit(isSmash = false): void {
     if (this.muted) return

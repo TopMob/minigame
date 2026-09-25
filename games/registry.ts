@@ -98,7 +98,7 @@ export const GAME_REGISTRY: GameMeta[] = [
     isMultiplayer: true,
     pattern: 'C',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'connect4',

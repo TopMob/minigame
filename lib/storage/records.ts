@@ -1,3 +1,5 @@
+import { getGameById } from '@/games/registry'
+
 export interface GameRecord {
   id: string
   gameId: string
@@ -49,13 +51,8 @@ export function getLeaderboardStats(
   customDifficulties?: string[]
 ): DifficultyStats[] {
   const records = getAllGameRecords().filter((r) => r.gameId === gameId)
-  const defaultDiffs: Record<string, string[]> = {
-    sudoku: ['easy', 'medium', 'hard', 'expert'],
-    2048: ['classic'],
-    snake: ['easy', 'medium', 'hard'],
-    minesweeper: ['easy', 'medium', 'hard'],
-  }
-  const difficulties = customDifficulties || defaultDiffs[gameId] || ['easy', 'medium', 'hard']
+  const meta = getGameById(gameId)
+  const difficulties = customDifficulties || meta?.difficulties || ['easy', 'medium', 'hard']
 
   return difficulties.map((diff) => {
     const diffRecords = records.filter((r) => r.difficulty === diff)
