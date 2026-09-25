@@ -48,6 +48,10 @@ export function useTennisEngine(
 
   // Ввод мыши / тача (мгновенное чтение)
   const inputRef = useRef<TennisInput>({
+    pixelX: 500,
+    pixelY: 450,
+    viewWidth: 1000,
+    viewHeight: 600,
     normalizedX: 0.5,
     normalizedY: 0.6,
     pointerVX: 0,
@@ -69,8 +73,8 @@ export function useTennisEngine(
   }))
 
   const lastPointerPos = useRef<{ x: number; y: number; time: number }>({
-    x: 0.5,
-    y: 0.6,
+    x: 500,
+    y: 450,
     time: 0,
   })
 
@@ -93,14 +97,17 @@ export function useTennisEngine(
     })
   }, [])
 
-  // ── Обработка движения мыши ────────────────────────────────────────────────
+  // ── Обработка движения мыши (пиксельное отслеживание 1:1) ──────────────────
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
     const container = containerRef.current
     if (!container) return
 
     const rect = container.getBoundingClientRect()
-    const rawX = (clientX - rect.left) / rect.width
-    const rawY = (clientY - rect.top) / rect.height
+    const pixelX = Math.max(0, Math.min(rect.width, clientX - rect.left))
+    const pixelY = Math.max(0, Math.min(rect.height, clientY - rect.top))
+
+    const rawX = pixelX / (rect.width || 1)
+    const rawY = pixelY / (rect.height || 1)
 
     const normX = Math.max(0, Math.min(1, rawX))
     const normY = Math.max(0, Math.min(1, rawY))
@@ -111,14 +118,17 @@ export function useTennisEngine(
     let pvx = 0
     let pvy = 0
     if (dt > 0.002 && dt < 0.2) {
-      // Пиксели в секунду (приведенные к масштабу 500px)
-      pvx = ((normX - lastPointerPos.current.x) * 500) / dt
-      pvy = ((normY - lastPointerPos.current.y) * 500) / dt
+      pvx = ((pixelX - lastPointerPos.current.x) / dt) * 0.35
+      pvy = ((pixelY - lastPointerPos.current.y) / dt) * 0.35
     }
 
-    lastPointerPos.current = { x: normX, y: normY, time: now }
+    lastPointerPos.current = { x: pixelX, y: pixelY, time: now }
 
     inputRef.current = {
+      pixelX,
+      pixelY,
+      viewWidth: rect.width,
+      viewHeight: rect.height,
       normalizedX: normX,
       normalizedY: normY,
       pointerVX: pvx,

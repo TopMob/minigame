@@ -78,6 +78,10 @@ export interface TennisState {
 }
 
 export interface TennisInput {
+  pixelX: number      // Координата X курсора в пикселях холста
+  pixelY: number      // Координата Y курсора в пикселях холста
+  viewWidth: number   // Текущая ширина холста
+  viewHeight: number  // Текущая высота холста
   normalizedX: number // 0..1 по ширине экрана
   normalizedY: number // 0..1 по высоте экрана
   pointerVX: number   // скорость указателя
@@ -96,17 +100,17 @@ export const NET_Z = TABLE_LENGTH / 2 // 137.0 см (центр стола)
 export const NET_HEIGHT = 13.5      // высота сетки (см)
 export const BALL_RADIUS = 3.0      // радиус мяча (см)
 
-// Ракетки
-export const PADDLE_RADIUS_X = 14.0 // полуширина ракетки
-export const PADDLE_RADIUS_Y = 16.0 // полувысота ракетки
+// Ракетки (компактный эргономичный размер ~15x17 см, не закрывающий обзор)
+export const PADDLE_RADIUS_X = 7.5 // полуширина ракетки
+export const PADDLE_RADIUS_Y = 8.5 // полувысота ракетки
 export const PLAYER_PADDLE_Z = 0    // плоскость ракетки игрока
 export const OPPONENT_PADDLE_Z = TABLE_LENGTH + 12 // за дальним краем стола
 
-// Камера (от первого лица над ближним краем)
+// Камера (от первого лица над ближним краем для широкоформатного обзора)
 export const CAMERA_X = 0
-export const CAMERA_Y = 50.0  // высота взгляда над столом
-export const CAMERA_Z = -52.0 // расстояние назад от ближнего края
-export const FOCAL_LENGTH = 260.0
+export const CAMERA_Y = 56.0  // высота взгляда над столом
+export const CAMERA_Z = -55.0 // расстояние назад от ближнего края
+export const FOCAL_LENGTH = 280.0
 
 export const SETS_TO_WIN = 2
 

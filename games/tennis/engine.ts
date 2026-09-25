@@ -14,6 +14,9 @@ import {
   TABLE_WIDTH,
   TABLE_LENGTH,
   PLAYER_PADDLE_Z,
+  CAMERA_Y,
+  CAMERA_Z,
+  FOCAL_LENGTH,
   SETS_TO_WIN,
 } from './types'
 import { stepBall3D, checkPlayerHit, springLerp } from './physics'
@@ -496,27 +499,33 @@ function updatePlayerState(
   input: TennisInput,
   dt: number
 ): TennisPlayer {
-  // Нормализованные координаты (0..1) проецируем на 3D диапазон стола
-  // Ширина стола по X: от -85 до +85 см
-  const targetX = (input.normalizedX - 0.5) * (TABLE_WIDTH * 1.25)
-  // Высота по Y: от 6 до 55 см над столом
-  const targetY = 55 - input.normalizedY * 48
+  const W = input.viewWidth || 960
+  const H = input.viewHeight || 600
+  const cx = W / 2
+  const cy = H * 0.38
+  const scale = FOCAL_LENGTH / (-CAMERA_Z) // 280 / 55 ≈ 5.09
 
-  // Пружинная интерполяция с высокой отзывчивостью (stiffness = 24 для мгновенного отклика без задержек)
-  const stiffness = 26
-  const newX = springLerp(player.x, targetX, stiffness, dt)
-  const newY = springLerp(player.y, targetY, stiffness, dt)
+  // Прямое обратное проецирование: курсор мыши (input.pixelX, input.pixelY)
+  // идеально сопоставляется с 3D положением ракетки, гарантируя 1:1 попадание ракетки ровно под мышь!
+  const targetX = (input.pixelX - cx) / scale
+  const targetY = CAMERA_Y + (cy - input.pixelY) / scale
 
-  // Скорость ракетки в см/с
-  const vx = (newX - player.x) / (dt || 0.016)
-  const vy = (newY - player.y) / (dt || 0.016)
+  // Ракетка мгновенно следует за курсором мыши 1:1 без задержек и лагов!
+  const newX = targetX
+  const newY = targetY
 
-  // Наклон ракетки при взмахе
-  const tiltX = Math.max(-0.45, Math.min(0.45, (vx / 400) * 0.45))
-  const tiltY = Math.max(-0.4, Math.min(0.4, (vy / 350) * 0.35))
+  // Скорость перемещения ракетки в см/с
+  const vx = dt > 0.001 ? (newX - player.x) / dt : 0
+  const vy = dt > 0.001 ? (newY - player.y) / dt : 0
+
+  // Динамический наклон ракетки при движении с мягкой пружинной амортизацией
+  const targetTiltX = Math.max(-0.4, Math.min(0.4, (vx / 450) * 0.4))
+  const targetTiltY = Math.max(-0.35, Math.min(0.35, (vy / 400) * 0.3))
+  const tiltX = springLerp(player.tiltX, targetTiltX, 24, dt)
+  const tiltY = springLerp(player.tiltY, targetTiltY, 24, dt)
 
   const speed = Math.sqrt(vx * vx + vy * vy)
-  const swingPower = Math.min(1.0, speed / 550)
+  const swingPower = Math.min(1.0, speed / 500)
 
   const hitTimer = Math.max(0, player.hitTimer - dt * 1000)
 

@@ -433,8 +433,8 @@ function drawPlayerPaddle3D(
   ctx.shadowBlur = 18
 
   // Деревянная рукоять
-  const handleW = rx * 0.24
-  const handleH = ry * 1.0
+  const handleW = rx * 0.22
+  const handleH = ry * 0.68
   const handleGrad = ctx.createLinearGradient(-handleW / 2, ry * 0.7, handleW / 2, ry * 0.7)
   handleGrad.addColorStop(0, '#78350f')
   handleGrad.addColorStop(0.5, '#d97706')
@@ -442,10 +442,10 @@ function drawPlayerPaddle3D(
 
   ctx.fillStyle = handleGrad
   ctx.beginPath()
-  ctx.roundRect(-handleW / 2, ry * 0.75, handleW, handleH, 5)
+  ctx.roundRect(-handleW / 2, ry * 0.70, handleW, handleH, 4)
   ctx.fill()
 
-  // Черная / синяя профессиональная резина ракетки
+  // Профессиональная матовая резина ракетки (красная или синяя при смэше)
   const faceGrad = ctx.createRadialGradient(
     -rx * 0.25,
     -ry * 0.25,
@@ -455,13 +455,13 @@ function drawPlayerPaddle3D(
     rx
   )
   if (player.isHitting) {
-    faceGrad.addColorStop(0, '#3b82f6')
-    faceGrad.addColorStop(0.7, '#1d4ed8')
+    faceGrad.addColorStop(0, '#60a5fa')
+    faceGrad.addColorStop(0.7, '#2563eb')
     faceGrad.addColorStop(1, '#1e3a8a')
   } else {
-    faceGrad.addColorStop(0, '#262626')
-    faceGrad.addColorStop(0.7, '#171717')
-    faceGrad.addColorStop(1, '#0a0a0a')
+    faceGrad.addColorStop(0, '#f87171')
+    faceGrad.addColorStop(0.65, '#dc2626')
+    faceGrad.addColorStop(1, '#991b1b')
   }
 
   ctx.fillStyle = faceGrad
@@ -469,13 +469,13 @@ function drawPlayerPaddle3D(
   ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2)
   ctx.fill()
 
-  // Обод ракетки (дерево)
-  ctx.strokeStyle = '#b45309'
-  ctx.lineWidth = Math.max(2, 4 * p.scale)
+  // Аккуратный деревянный обод ракетки
+  ctx.strokeStyle = '#f59e0b'
+  ctx.lineWidth = 2.0
   ctx.stroke()
 
   // Внутренний блик света на резине
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.14)'
   ctx.beginPath()
   ctx.ellipse(-rx * 0.3, -ry * 0.3, rx * 0.35, ry * 0.25, -0.4, 0, Math.PI * 2)
   ctx.fill()
@@ -600,6 +600,12 @@ export const TennisCourt = memo(function TennisCourt({
 
       const currentState = stateRef.current
       const currentInput = inputRef.current
+
+      // Синхронизируем точные размеры холста для 1:1 проекции мыши
+      if (canvas.clientWidth > 0 && canvas.clientHeight > 0) {
+        currentInput.viewWidth = canvas.clientWidth
+        currentInput.viewHeight = canvas.clientHeight
+      }
 
       // ── ШАГ ФИЗИКИ ДВИЖКА ──────────────────────────────────────────────────
       const nextState = tennisEngine.applyAction(currentState, {

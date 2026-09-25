@@ -1,14 +1,16 @@
 'use client'
 
 // TennisGame — главный компонент игры Теннис / Пинг-понг (вид от первого лица)
+// Широкоформатный корт (пол-окна / на весь экран)
+// Ракетка 1:1 вместо курсора мыши (курсор скрыт, ракетка прямо под курсором)
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useTennisEngine } from '@/games/tennis/hooks'
 import { TennisCourt } from './TennisCourt'
 import { ScoreOverlay } from './ScoreOverlay'
 import { DifficultySelector } from '@/components/shared/DifficultySelector'
 import { Button } from '@/components/ui/button'
-import { RotateCcw, Volume2, VolumeX } from 'lucide-react'
+import { RotateCcw, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react'
 import { soundManager } from '@/lib/audio/sounds'
 import type { TennisDifficulty, TennisState } from '@/games/tennis/types'
 
@@ -27,11 +29,31 @@ export function TennisGame() {
 
   const [muted, setMuted] = useState(soundManager.isMuted)
   const [localUI, setLocalUI] = useState(uiState)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   function toggleMute() {
     const next = soundManager.toggleMute()
     setMuted(next)
   }
+
+  const toggleFullscreen = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.().catch(() => {})
+    } else {
+      document.exitFullscreen?.().catch(() => {})
+    }
+  }, [containerRef])
+
+  useEffect(() => {
+    const onFSChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener('fullscreenchange', onFSChange)
+    return () => document.removeEventListener('fullscreenchange', onFSChange)
+  }, [])
 
   // Обновление UI от canvas-цикла без лишних ре-рендеров
   const handleStateChange = useCallback((nextState: TennisState, isSmash = false) => {
@@ -50,19 +72,31 @@ export function TennisGame() {
   }, [])
 
   return (
-    <div className="flex flex-col items-center gap-3.5 w-full max-w-[460px] px-3 select-none">
-      {/* ── Заголовок и контролы звука/перезапуска ────────────────────────────── */}
+    <div className="flex flex-col items-center gap-3 w-full max-w-4xl lg:max-w-5xl px-2 sm:px-4 select-none">
+      {/* ── Стили для скрытия мыши на игровом поле и подсветки кнопок ────────── */}
+      <style jsx global>{`
+        .tennis-court-container,
+        .tennis-court-container canvas {
+          cursor: none !important;
+        }
+        .tennis-court-container button,
+        .tennis-interactive-btn {
+          cursor: pointer !important;
+        }
+      `}</style>
+
+      {/* ── Заголовок и контролы звука/полного экрана/перезапуска ─────────────── */}
       <div className="flex items-center justify-between w-full">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight flex items-center gap-2">
             🏓 Теннис
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Вид от первого лица • Управление ракеткой мышью
+            Широкоформатный корт • Твоя мышь — это ракетка
           </p>
         </div>
 
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 items-center">
           <Button
             variant="ghost"
             size="icon"
@@ -76,6 +110,21 @@ export function TennisGame() {
               <Volume2 className="h-4 w-4" />
             )}
           </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Выйти из полноэкранного режима (Esc)' : 'На весь экран'}
+            className="h-8 w-8 rounded-lg cursor-pointer"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"
@@ -97,12 +146,15 @@ export function TennisGame() {
         />
       </div>
 
-      {/* ── Игровое 3D поле (стол от первого лица) ────────────────────────────── */}
+      {/* ── Игровое 3D поле (широкоформатный корт от первого лица) ────────────── */}
       <div
         ref={containerRef}
-        className="relative w-full rounded-2xl overflow-hidden border-2 border-border/80 shadow-2xl bg-black"
+        className={`tennis-court-container relative w-full overflow-hidden shadow-2xl bg-black transition-all ${
+          isFullscreen
+            ? 'fixed inset-0 z-50 rounded-none h-screen w-screen border-none'
+            : 'rounded-2xl border-2 border-border/80 aspect-[16/10] sm:aspect-[16/9] min-h-[440px] max-h-[720px]'
+        }`}
         style={{
-          aspectRatio: '3/4',
           touchAction: 'none',
           cursor: 'none',
         }}
@@ -113,17 +165,30 @@ export function TennisGame() {
           onStateChange={handleStateChange}
         />
         <ScoreOverlay state={localUI} onServe={serve} onRestart={restart} />
+
+        {/* Кнопка выхода из полноэкранного режима внутри контейнера */}
+        {isFullscreen && (
+          <div className="absolute top-3 right-3 z-30 pointer-events-auto">
+            <button
+              onClick={toggleFullscreen}
+              className="tennis-interactive-btn flex items-center gap-1.5 bg-black/60 hover:bg-black/80 text-white/90 text-xs px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-md transition-all shadow-lg"
+            >
+              <Minimize2 className="h-3.5 w-3.5" />
+              <span>Выйти (Esc)</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Подсказки управления ──────────────────────────────────────────────── */}
-      <div className="text-[11px] text-muted-foreground text-center space-y-0.5 hidden sm:block">
-        <p>🏓 <strong>Двигай мышь</strong> — ракетка в руке следует за курсором</p>
-        <p>⚡ <strong>Резкий взмах вперед</strong> — мощный смэш с подкруткой | Клик — подача</p>
+      <div className="text-xs text-muted-foreground text-center space-y-0.5">
+        <p>
+          🏓 <strong>Мышь — это ракетка</strong> (курсор скрыт, ракетка точно под рукой) | <strong>Клик</strong> — подача
+        </p>
+        <p>
+          ⚡ <strong>Резкий взмах мыши вперед</strong> — мощный смэш с подкруткой
+        </p>
       </div>
-
-      <p className="text-[11px] text-muted-foreground text-center sm:hidden">
-        Веди пальцем — ракетка | Резкий свайп — смэш | Тап — подача
-      </p>
     </div>
   )
 }

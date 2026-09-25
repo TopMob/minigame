@@ -51,7 +51,7 @@ export function project3D(
   const scale = FOCAL_LENGTH / dz
   const cx = viewWidth / 2
   // Линия горизонта чуть выше центра для отличного обзора стола
-  const cy = viewHeight * 0.40
+  const cy = viewHeight * 0.38
 
   const screenX = cx + (x - CAMERA_X) * scale
   // Ось Y направлена вверх, а на экране Y вниз
