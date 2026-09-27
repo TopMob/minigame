@@ -62,7 +62,7 @@ export const GAME_REGISTRY: GameMeta[] = [
     isMultiplayer: false,
     pattern: 'A',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'wordle',
@@ -70,11 +70,11 @@ export const GAME_REGISTRY: GameMeta[] = [
     icon: '🔤',
     category: 'word',
     path: '/wordle',
-    difficulties: ['daily'],
+    difficulties: ['daily', 'random'],
     isMultiplayer: false,
     pattern: 'A',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'memory',
@@ -86,7 +86,7 @@ export const GAME_REGISTRY: GameMeta[] = [
     isMultiplayer: false,
     pattern: 'A',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'tictactoe',
@@ -110,7 +110,7 @@ export const GAME_REGISTRY: GameMeta[] = [
     isMultiplayer: true,
     pattern: 'C',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'reversi',
@@ -134,7 +134,7 @@ export const GAME_REGISTRY: GameMeta[] = [
     isMultiplayer: false,
     pattern: 'A',
     persistsSessions: false,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'chess',
@@ -143,10 +143,10 @@ export const GAME_REGISTRY: GameMeta[] = [
     category: 'board',
     path: '/chess',
     difficulties: ['easy', 'medium', 'hard', 'expert'],
-    isMultiplayer: false,
+    isMultiplayer: true,
     pattern: 'B',
     persistsSessions: true,
-    isActive: false,
+    isActive: true,
   },
   {
     id: 'battleship',

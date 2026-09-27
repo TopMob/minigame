@@ -249,6 +249,127 @@ class SoundEffectsManager {
       osc.stop(ctx.currentTime + 0.06)
     } catch {}
   }
+
+  // Звук раскрытия буквы в Словоцепи — тихий мелодичный "тик"
+  public playReveal(isCorrect: boolean): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+
+      if (isCorrect) {
+        osc.frequency.setValueAtTime(660, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.06)
+      } else {
+        osc.frequency.setValueAtTime(440, ctx.currentTime)
+        osc.frequency.exponentialRampToValueAtTime(330, ctx.currentTime + 0.06)
+      }
+
+      gain.gain.setValueAtTime(0.07, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.08)
+    } catch {}
+  }
+
+  // Звук взятия шашки — короткий "хлопок"
+  public playCapture(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(300, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.12)
+
+      gain.gain.setValueAtTime(0.15, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.12)
+    } catch {}
+  }
+
+  // Звук сброса фишки в Connect4 — "глухой удар"
+  public playDrop(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(200, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.1)
+
+      gain.gain.setValueAtTime(0.18, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.12)
+    } catch {}
+  }
+
+  // Звук хода фигуры в Шахматах — мягкий деревянный щелчок
+  public playChessMove(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(480, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.04)
+
+      gain.gain.setValueAtTime(0.14, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.045)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.045)
+    } catch {}
+  }
+
+  // Звук шаха в Шахматах — тревожный двойной сигнал
+  public playChessCheck(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc1 = ctx.createOscillator()
+      const gain1 = ctx.createGain()
+      osc1.type = 'sine'
+      osc1.frequency.setValueAtTime(587.33, ctx.currentTime) // D5
+      osc1.frequency.setValueAtTime(783.99, ctx.currentTime + 0.08) // G5
+
+      gain1.gain.setValueAtTime(0.15, ctx.currentTime)
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22)
+
+      osc1.connect(gain1)
+      gain1.connect(ctx.destination)
+      osc1.start()
+      osc1.stop(ctx.currentTime + 0.22)
+    } catch {}
+  }
 }
 
 export const soundManager = new SoundEffectsManager()

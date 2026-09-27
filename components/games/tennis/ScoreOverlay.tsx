@@ -35,8 +35,8 @@ export function ScoreOverlay({ state, onServe, onRestart }: ScoreOverlayProps) {
 
   return (
     <div className="absolute inset-0 pointer-events-none select-none" style={{ zIndex: 5 }}>
-      {/* ── Верхняя панель счёта ──────────────────────────────────────────────── */}
-      <div className="absolute top-2 left-0 right-0 flex flex-col items-center gap-1.5">
+      {/* ── Верхняя панель счёта (правый угол — не мешает игре) ────────────────── */}
+      <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
         <div className="flex items-stretch gap-1 bg-black/70 backdrop-blur-md rounded-xl px-2.5 py-1.5 border border-white/15 shadow-xl">
           {/* Соперник */}
           <div className="flex flex-col items-center px-2.5 min-w-[42px]">
@@ -112,7 +112,7 @@ export function ScoreOverlay({ state, onServe, onRestart }: ScoreOverlayProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -8 }}
             transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-            className="absolute bottom-14 left-0 right-0 flex justify-center pointer-events-auto"
+            className="absolute bottom-2 right-2 flex justify-end pointer-events-auto"
           >
             <button
               onClick={onServe}
@@ -130,31 +130,31 @@ export function ScoreOverlay({ state, onServe, onRestart }: ScoreOverlayProps) {
         )}
       </AnimatePresence>
 
-      {/* ── Уведомление о розыгрыше очка ──────────────────────────────────────── */}
+      {/* ── Уведомление о розыгрыше очка (правый нижний угол — не мешает игре) ── */}
       <AnimatePresence>
         {(phase === 'pointEnd' || matchOver) && pointWinner && (
           <motion.div
             key={`point-${score.playerPoints}-${score.opponentPoints}`}
-            initial={{ opacity: 0, scale: 0.7, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            initial={{ opacity: 0, x: 30, scale: 0.85 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 20, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            className="absolute bottom-16 right-2 pointer-events-none"
           >
             <div className={`
-              rounded-2xl px-6 py-4 text-center shadow-2xl border
+              rounded-xl px-4 py-3 text-right shadow-2xl border
               ${pointWinner === 'player'
                 ? 'bg-blue-600/90 border-blue-300/50 backdrop-blur-md'
                 : 'bg-red-700/90 border-red-300/50 backdrop-blur-md'}
             `}>
-              <div className="text-3xl mb-1">
+              <div className="text-2xl mb-0.5">
                 {pointWinner === 'player' ? '🎾' : '😤'}
               </div>
-              <div className="text-white font-extrabold text-lg">
+              <div className="text-white font-extrabold text-sm">
                 {pointWinner === 'player' ? 'Твоё очко!' : 'Очко бота!'}
               </div>
               {faultReason && (
-                <div className="text-white/80 text-xs mt-1 font-medium">
+                <div className="text-white/80 text-[10px] mt-0.5 font-medium">
                   {getFaultText(faultReason)}
                 </div>
               )}

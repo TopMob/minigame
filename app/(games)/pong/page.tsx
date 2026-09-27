@@ -5,7 +5,7 @@
 import dynamic from 'next/dynamic'
 
 const TennisGame = dynamic(
-  () => import('@/components/games/Tennis/TennisGame').then((m) => ({ default: m.TennisGame })),
+  () => import('@/components/games/tennis/TennisGame').then((m) => ({ default: m.TennisGame })),
   {
     loading: () => (
       <div className="flex min-h-[50vh] items-center justify-center">
