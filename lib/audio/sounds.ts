@@ -370,6 +370,265 @@ class SoundEffectsManager {
       osc1.stop(ctx.currentTime + 0.22)
     } catch {}
   }
+
+  // --- РЕВЕРСИ ---
+
+  // Звук установки фишки на сукно (тактильный деревянно-каменный стук)
+  public playReversiPlace(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(320, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.05)
+
+      gain.gain.setValueAtTime(0.18, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.06)
+    } catch {}
+  }
+
+  // Звук переворота фишек (легкий шелест / щелчок)
+  public playReversiFlip(index: number = 0): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const startTime = ctx.currentTime + Math.min(index * 0.035, 0.3)
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(450 + (index % 5) * 40, startTime)
+      osc.frequency.exponentialRampToValueAtTime(260, startTime + 0.04)
+
+      gain.gain.setValueAtTime(0.1, startTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.045)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(startTime)
+      osc.stop(startTime + 0.045)
+    } catch {}
+  }
+
+  // Звук пропуска хода (двухтональный мягкий сигнал)
+  public playReversiPass(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(440, ctx.currentTime)
+      osc.frequency.setValueAtTime(330, ctx.currentTime + 0.08)
+
+      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.2)
+    } catch {}
+  }
+
+  // --- МОРСКОЙ БОЙ ---
+
+  // Выстрел артиллерии / пуск торпеды
+  public playBattleshipShot(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(150, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.12)
+
+      gain.gain.setValueAtTime(0.16, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.15)
+    } catch {}
+  }
+
+  // Промах: всплеск воды
+  public playBattleshipMiss(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      // Имитация всплеска через фильтрованный белый шум или модулированный синус
+      const bufferSize = ctx.sampleRate * 0.18
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1
+      }
+
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.setValueAtTime(600, ctx.currentTime)
+      filter.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.18)
+
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.14, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18)
+
+      noise.connect(filter)
+      filter.connect(gain)
+      gain.connect(ctx.destination)
+
+      noise.start()
+      noise.stop(ctx.currentTime + 0.18)
+    } catch {}
+  }
+
+  // Попадание: взрыв и треск
+  public playBattleshipHit(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      // Мощный низкий импульс
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(180, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.22)
+
+      gain.gain.setValueAtTime(0.25, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.25)
+
+      // Шумовой компонент взрыва
+      const bufferSize = ctx.sampleRate * 0.2
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.7
+      }
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+      const noiseGain = ctx.createGain()
+      noiseGain.gain.setValueAtTime(0.18, ctx.currentTime)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+      noise.connect(noiseGain)
+      noiseGain.connect(ctx.destination)
+      noise.start()
+      noise.stop(ctx.currentTime + 0.2)
+    } catch {}
+  }
+
+  // Потопление: раскатистый двойной взрыв
+  public playBattleshipSink(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      // Низкочастотный рокот
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(120, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 0.45)
+
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.45)
+
+      // Звук аварийной сирены / гидроакустического эха
+      const echo = ctx.createOscillator()
+      const echoGain = ctx.createGain()
+      echo.type = 'sine'
+      echo.frequency.setValueAtTime(320, ctx.currentTime + 0.1)
+      echo.frequency.exponentialRampToValueAtTime(160, ctx.currentTime + 0.4)
+      echoGain.gain.setValueAtTime(0, ctx.currentTime)
+      echoGain.gain.setValueAtTime(0.12, ctx.currentTime + 0.1)
+      echoGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+
+      echo.connect(echoGain)
+      echoGain.connect(ctx.destination)
+      echo.start(ctx.currentTime + 0.1)
+      echo.stop(ctx.currentTime + 0.4)
+    } catch {}
+  }
+
+  // Сонар: характерный «пинг» подлодки
+  public playSonar(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(1100, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.5)
+
+      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.6)
+    } catch {}
+  }
+
+  // Установка корабля в доке / на поле (магнитный щелчок)
+  public playPlacementSnap(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(540, ctx.currentTime)
+      osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.05)
+
+      gain.gain.setValueAtTime(0.15, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.06)
+    } catch {}
+  }
 }
 
 export const soundManager = new SoundEffectsManager()
