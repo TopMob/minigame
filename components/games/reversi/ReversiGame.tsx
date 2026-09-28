@@ -8,7 +8,7 @@ import { soundManager } from '@/lib/audio/sounds'
 import { Button } from '@/components/ui/button'
 import { Confetti } from '@/components/games/Confetti'
 import { ReversiBoard } from './ReversiBoard'
-import type { ReversiDifficulty, ReversiMode, ReversiPlayer } from '@/games/reversi/types'
+import type { ReversiDifficulty } from '@/games/reversi/types'
 
 const DIFFICULTIES: { id: ReversiDifficulty; label: string; desc: string }[] = [
   { id: 'easy', label: 'Лёгкий', desc: 'Случайные и жадные ходы' },
@@ -38,7 +38,6 @@ export function ReversiGame() {
   const isDraw = state.status === 'draw'
   const isOver = isWon || isDraw
   const isHumanWin = state.mode === 'vs-bot' && state.winner === state.humanPlayer
-  const botPlayer: ReversiPlayer = state.humanPlayer === 'black' ? 'white' : 'black'
 
   const totalDiscs = state.pieces.black + state.pieces.white
   const blackPct = totalDiscs > 0 ? (state.pieces.black / totalDiscs) * 100 : 50

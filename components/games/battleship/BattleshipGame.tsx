@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   RotateCcw,
@@ -49,6 +49,15 @@ export function BattleshipGame() {
   const [muted, setMuted] = useState(soundManager.isMuted)
   const [showRules, setShowRules] = useState(false)
   const [mobileTab, setMobileTab] = useState<'radar' | 'fleet'>('radar')
+  const [elapsedSeconds, setElapsedSeconds] = useState(1)
+
+  useEffect(() => {
+    if (state.phase !== 'battle') return
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.max(1, Math.round((Date.now() - state.startTime) / 1000)))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [state.phase, state.startTime])
 
   const toggleMute = () => {
     setMuted(soundManager.toggleMute())
@@ -65,8 +74,6 @@ export function BattleshipGame() {
     state.shotsFired.player > 0
       ? Math.round((state.hitsCount.player / state.shotsFired.player) * 100)
       : 0
-
-  const elapsedSeconds = Math.max(1, Math.round((Date.now() - state.startTime) / 1000))
 
   return (
     <div className="relative flex flex-col items-center gap-4 w-full max-w-4xl mx-auto px-3 sm:px-4 py-2 select-none">
@@ -165,7 +172,6 @@ export function BattleshipGame() {
 
             <BattleshipGrid
               board={state.playerBoard}
-              fleet={state.playerFleet}
               isEnemy={false}
               isPlacementMode={true}
               selectedSize={state.selectedShipSize}
@@ -248,7 +254,6 @@ export function BattleshipGame() {
               />
               <BattleshipGrid
                 board={state.botBoard}
-                fleet={state.botFleet}
                 isEnemy={true}
                 isInteractive={state.currentTurn === 'player' && !state.isBotThinking && !isGameOver}
                 onCellClick={fireAtBot}
@@ -267,7 +272,6 @@ export function BattleshipGame() {
               />
               <BattleshipGrid
                 board={state.playerBoard}
-                fleet={state.playerFleet}
                 isEnemy={false}
                 isInteractive={false}
               />

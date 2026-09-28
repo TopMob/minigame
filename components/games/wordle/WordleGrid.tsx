@@ -2,7 +2,7 @@
 
 // Сетка тайлов для Словоцепи — 6 строк × 5 столбцов
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import type { TileState } from '@/games/wordle/types'
 import { WORD_LENGTH, MAX_GUESSES } from '@/games/wordle/engine'
 

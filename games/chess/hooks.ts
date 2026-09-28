@@ -93,7 +93,12 @@ export function useChess(
           soundManager.playChessMove()
         }
 
-        return nextState
+        const isBotTurnNext =
+          nextState.gameMode === 'ai' &&
+          nextState.status === 'in_progress' &&
+          nextState.turn !== nextState.playerColor
+
+        return { ...nextState, isBotThinking: isBotTurnNext }
       })
     },
     []
@@ -168,9 +173,6 @@ export function useChess(
     if (state.status !== 'in_progress') return
     if (state.gameMode !== 'ai') return
     if (state.turn === state.playerColor) return
-    if (state.isBotThinking) return
-
-    setState((prev) => ({ ...prev, isBotThinking: true }))
 
     const delay =
       state.difficulty === 'expert' ? 700 : state.difficulty === 'hard' ? 550 : 400
@@ -199,13 +201,14 @@ export function useChess(
     ) => {
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
       isSavedRef.current = false
-      setState(
-        createInitialChessState(
-          newDiff ?? state.difficulty,
-          newMode ?? state.gameMode,
-          newColor ?? state.playerColor
-        )
-      )
+      const targetDiff = newDiff ?? state.difficulty
+      const targetMode = newMode ?? state.gameMode
+      const targetColor = newColor ?? state.playerColor
+      const next = createInitialChessState(targetDiff, targetMode, targetColor)
+      if (targetMode === 'ai' && targetColor === 'b') {
+        next.isBotThinking = true
+      }
+      setState(next)
     },
     [state.difficulty, state.gameMode, state.playerColor]
   )

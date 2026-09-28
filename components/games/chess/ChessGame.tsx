@@ -11,7 +11,6 @@ import {
   ArrowUpDown,
   Sparkles,
   Swords,
-  ChevronRight,
 } from 'lucide-react'
 import { ChessBoard } from './ChessBoard'
 import { ChessPiece } from './ChessPieces'
@@ -22,7 +21,6 @@ import type {
   ChessColor,
   ChessDifficulty,
   GameMode,
-  PieceType,
 } from '@/games/chess/types'
 
 const DIFFICULTY_LABELS: Record<ChessDifficulty, string> = {
@@ -49,11 +47,6 @@ export const ChessGame: React.FC = () => {
   } = useChess(difficulty, gameMode, playerColor)
 
   const historyEndRef = useRef<HTMLDivElement>(null)
-
-  // Синхронизация переворота доски при игре за чёрных
-  useEffect(() => {
-    setIsFlipped(playerColor === 'b')
-  }, [playerColor])
 
   // Автоскролл списка ходов
   useEffect(() => {

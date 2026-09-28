@@ -1,6 +1,5 @@
 'use client'
 
-import { BOARD_SIZE } from '@/games/reversi/types'
 import type { ReversiBoard as BoardType, ReversiMove } from '@/games/reversi/types'
 import { ReversiCell } from './ReversiCell'
 

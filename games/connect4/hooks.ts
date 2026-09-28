@@ -64,17 +64,17 @@ export function useConnect4(
     if (state.status !== 'in_progress') return
 
     const botPlayer: Connect4Player = state.humanPlayer === 'red' ? 'yellow' : 'red'
-    if (state.currentPlayer !== botPlayer || state.isBotThinking) return
+    if (state.currentPlayer !== botPlayer) return
 
     const delay = state.difficulty === 'hard' ? 800 : state.difficulty === 'medium' ? 500 : 350
 
-    setState((s) => ({ ...s, isBotThinking: true }))
-
     botTimeoutRef.current = setTimeout(() => {
       setState((current) => {
-        if (current.status !== 'in_progress') return current
+        if (current.status !== 'in_progress' || current.currentPlayer !== botPlayer) {
+          return { ...current, isBotThinking: false }
+        }
         const botCol = getBotMove(current.board, botPlayer, current.difficulty)
-        if (botCol === -1) return current
+        if (botCol === -1) return { ...current, isBotThinking: false }
         soundManager.playDrop()
         return applyPlayerMove({ ...current, isBotThinking: false }, botCol)
       })
@@ -83,14 +83,18 @@ export function useConnect4(
     return () => {
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
     }
-  }, [state.currentPlayer, state.status, state.mode])
+  }, [state.currentPlayer, state.status, state.mode, state.humanPlayer, state.difficulty])
 
   const drop = useCallback((col: number) => {
     setState((prev) => {
       if (prev.status !== 'in_progress' || prev.isBotThinking) return prev
       if (prev.mode === 'vs-bot' && prev.currentPlayer !== prev.humanPlayer) return prev
       soundManager.playDrop()
-      return applyPlayerMove(prev, col)
+      const next = applyPlayerMove(prev, col)
+      if (next.mode === 'vs-bot' && next.status === 'in_progress' && next.currentPlayer !== next.humanPlayer) {
+        return { ...next, isBotThinking: true }
+      }
+      return next
     })
   }, [])
 

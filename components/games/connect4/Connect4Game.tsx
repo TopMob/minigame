@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Confetti } from '@/components/games/Confetti'
 import { soundManager } from '@/lib/audio/sounds'
 import { Connect4Board } from './Connect4Board'
-import type { Connect4Difficulty, Connect4Mode, Connect4Player } from '@/games/connect4/types'
+import type { Connect4Difficulty, Connect4Player } from '@/games/connect4/types'
 
 const DIFFICULTIES: { id: Connect4Difficulty; label: string }[] = [
   { id: 'easy', label: 'Лёгкий' },
@@ -38,7 +38,6 @@ export function Connect4Game() {
   const isOver = isWon || isDraw
   const isUserWin = state.mode === 'vs-bot' && isWon && state.winner === state.humanPlayer
 
-  const botPlayer: Connect4Player = state.humanPlayer === 'red' ? 'yellow' : 'red'
   const disabled = isOver || state.isBotThinking ||
     (state.mode === 'vs-bot' && state.currentPlayer !== state.humanPlayer)
 

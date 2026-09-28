@@ -82,12 +82,10 @@ export function useBattleship(initialDifficulty: BattleshipDifficulty = 'medium'
   // Логика хода бота
   useEffect(() => {
     if (state.phase !== 'battle') return
-    if (state.currentTurn !== 'bot' || state.isBotThinking) return
+    if (state.currentTurn !== 'bot') return
 
     const delay =
       state.difficulty === 'hard' ? 800 : state.difficulty === 'medium' ? 650 : 500
-
-    setState((s) => ({ ...s, isBotThinking: true }))
 
     botTurnTimeoutRef.current = setTimeout(() => {
       setState((current) => {
@@ -152,7 +150,7 @@ export function useBattleship(initialDifficulty: BattleshipDifficulty = 'medium'
           ...current,
           playerBoard: nextBoard,
           playerFleet: nextFleet,
-          isBotThinking: false,
+          isBotThinking: nextTurn === 'bot',
           currentTurn: nextTurn,
           shotsFired: { ...current.shotsFired, bot: current.shotsFired.bot + 1 },
           hitsCount: { ...current.hitsCount, bot: newBotHits },
@@ -165,7 +163,7 @@ export function useBattleship(initialDifficulty: BattleshipDifficulty = 'medium'
     return () => {
       if (botTurnTimeoutRef.current) clearTimeout(botTurnTimeoutRef.current)
     }
-  }, [state.currentTurn, state.phase, state.isBotThinking])
+  }, [state.currentTurn, state.phase, state.difficulty])
 
   // --- ДЕЙСТВИЯ ФАЗЫ РАССТАНОВКИ ---
 
@@ -374,6 +372,7 @@ export function useBattleship(initialDifficulty: BattleshipDifficulty = 'medium'
           botBoard: nextBoard,
           botFleet: nextFleet,
           currentTurn: nextTurn,
+          isBotThinking: nextTurn === 'bot',
           shotsFired: { ...prev.shotsFired, player: prev.shotsFired.player + 1 },
           hitsCount: { ...prev.hitsCount, player: newPlayerHits },
           lastPlayerShot: shotResult,

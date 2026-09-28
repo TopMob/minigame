@@ -57,8 +57,6 @@ export function useCheckers(initialDifficulty: CheckersDifficulty = 'medium') {
 
     const delay = state.difficulty === 'hard' ? 900 : state.difficulty === 'medium' ? 600 : 400
 
-    setState(s => ({ ...s, isBotThinking: true }))
-
     botTimeoutRef.current = setTimeout(() => {
       setState((current) => {
         if (current.status !== 'in_progress' || current.currentPlayer !== botPlayer) {
@@ -74,14 +72,19 @@ export function useCheckers(initialDifficulty: CheckersDifficulty = 'medium') {
     return () => {
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
     }
-  }, [state.currentPlayer, state.status])
+  }, [state.currentPlayer, state.status, state.humanPlayer, state.difficulty])
 
   const handleCellClick = useCallback((row: number, col: number) => {
     setState((prev) => {
       if (prev.status !== 'in_progress' || prev.isBotThinking) return prev
       if (prev.currentPlayer !== prev.humanPlayer) return prev
       soundManager.playClick()
-      return selectCell(prev, row, col)
+      const next = selectCell(prev, row, col)
+      const botPlayer: CheckersPlayer = next.humanPlayer === 'black' ? 'white' : 'black'
+      if (next.status === 'in_progress' && next.currentPlayer === botPlayer) {
+        return { ...next, isBotThinking: true }
+      }
+      return next
     })
   }, [])
 
@@ -99,7 +102,14 @@ export function useCheckers(initialDifficulty: CheckersDifficulty = 'medium') {
 
   const setHumanPlayer = useCallback((player: CheckersPlayer) => {
     if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
-    setState((prev) => ({ ...createCheckersState(prev.difficulty), humanPlayer: player }))
+    setState((prev) => {
+      const next = createCheckersState(prev.difficulty)
+      next.humanPlayer = player
+      if (player === 'black') {
+        next.isBotThinking = true
+      }
+      return next
+    })
     isSavedRef.current = false
   }, [])
 

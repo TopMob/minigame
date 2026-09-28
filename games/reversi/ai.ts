@@ -1,7 +1,6 @@
 import {
   cloneBoard,
   countPieces,
-  getFlipsForMove,
   getOpponent,
   getValidMoves,
 } from './engine'
@@ -24,11 +23,6 @@ const POSITIONAL_WEIGHTS: number[][] = [
   [  10,   1,   5,   2,   2,   5,   1,   10],
   [ -25, -45,   1,   1,   1,   1, -45,  -25],
   [ 100, -25,  10,   5,   5,  10, -25,  100],
-]
-
-// Координаты углов и связанных с ними X- и C-клеток
-const CORNERS: [number, number][] = [
-  [0, 0], [0, 7], [7, 0], [7, 7]
 ]
 
 // Проверка, занят ли угол, чтобы нейтрализовать штраф соседних клеток
@@ -128,7 +122,7 @@ function simulateMove(
 }
 
 // Сортировка ходов для ускорения альфа-бета отсечения
-function orderMoves(moves: ReversiMove[], board: ReversiBoard, player: ReversiPlayer): ReversiMove[] {
+function orderMoves(moves: ReversiMove[]): ReversiMove[] {
   return [...moves].sort((a, b) => {
     const weightA = POSITIONAL_WEIGHTS[a.row][a.col]
     const weightB = POSITIONAL_WEIGHTS[b.row][b.col]
@@ -165,7 +159,7 @@ function minimax(
     return minimax(board, depth - 1, alpha, beta, !isMaximizing, aiPlayer, emptyCount)
   }
 
-  const sortedMoves = orderMoves(validMoves, board, currentPlayer)
+  const sortedMoves = orderMoves(validMoves)
 
   if (isMaximizing) {
     let maxEval = -Infinity
@@ -243,7 +237,7 @@ export function getBotMove(
     let bestMove = validMoves[0]
     let bestScore = -Infinity
 
-    const ordered = orderMoves(validMoves, board, botPlayer)
+    const ordered = orderMoves(validMoves)
     for (const move of ordered) {
       const nextBoard = simulateMove(board, move, botPlayer)
       const score = minimax(
@@ -271,7 +265,7 @@ export function getBotMove(
   let alpha = -Infinity
   const beta = Infinity
 
-  const ordered = orderMoves(validMoves, board, botPlayer)
+  const ordered = orderMoves(validMoves)
   for (const move of ordered) {
     const nextBoard = simulateMove(board, move, botPlayer)
     const score = minimax(

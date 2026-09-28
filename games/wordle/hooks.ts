@@ -49,31 +49,6 @@ export function useWordle(initialMode: 'daily' | 'random' = 'daily') {
     })
   }, [state, mode])
 
-  // Клавиатурный ввод
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.altKey || e.metaKey) return
-      const key = e.key
-
-      if (key === 'Enter') {
-        handleSubmit()
-        return
-      }
-      if (key === 'Backspace' || key === 'Delete') {
-        handleDelete()
-        return
-      }
-      // Русская буква
-      const upper = key.toUpperCase()
-      if (/^[А-ЯЁ]$/.test(upper)) {
-        handleAdd(upper)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state])
-
   const handleAdd = useCallback((letter: string) => {
     setState((prev) => {
       if (prev.status !== 'in_progress') return prev
@@ -105,6 +80,30 @@ export function useWordle(initialMode: 'daily' | 'random' = 'daily') {
       return next
     })
   }, [])
+
+  // Клавиатурный ввод
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return
+      const key = e.key
+
+      if (key === 'Enter') {
+        handleSubmit()
+        return
+      }
+      if (key === 'Backspace' || key === 'Delete') {
+        handleDelete()
+        return
+      }
+      // Русская буква
+      const upper = key.toUpperCase()
+      if (/^[А-ЯЁ]$/.test(upper)) {
+        handleAdd(upper)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleAdd, handleDelete, handleSubmit])
 
   const restart = useCallback((newMode?: 'daily' | 'random') => {
     const m = newMode ?? mode

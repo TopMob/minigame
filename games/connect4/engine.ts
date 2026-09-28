@@ -2,7 +2,6 @@
 
 import type {
   Board,
-  Connect4Cell,
   Connect4Difficulty,
   Connect4Mode,
   Connect4Player,

@@ -7,7 +7,6 @@ import type {
   CheckersDifficulty,
   CheckersMove,
   CheckersPlayer,
-  CheckersPiece,
   CheckersState,
 } from './types'
 
@@ -48,11 +47,11 @@ export function createCheckersState(
   difficulty: CheckersDifficulty = 'medium'
 ): CheckersState {
   const board = createInitialBoard()
-  const allMoves = getAllMoves(board, 'black')
+  const allMoves = getAllMoves(board, 'white')
 
   return {
     board,
-    currentPlayer: 'black',
+    currentPlayer: 'white',
     humanPlayer: 'white',
     status: 'in_progress',
     winner: null,

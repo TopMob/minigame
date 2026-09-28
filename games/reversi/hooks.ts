@@ -97,16 +97,16 @@ export function useReversi(
     const botPlayer: ReversiPlayer =
       state.humanPlayer === 'black' ? 'white' : 'black'
 
-    if (state.currentPlayer !== botPlayer || state.isBotThinking) return
+    if (state.currentPlayer !== botPlayer) return
 
     const delay =
       state.difficulty === 'hard' ? 700 : state.difficulty === 'medium' ? 550 : 400
 
-    setState((s) => ({ ...s, isBotThinking: true }))
-
     botTimeoutRef.current = setTimeout(() => {
       setState((current) => {
-        if (current.status !== 'in_progress') return current
+        if (current.status !== 'in_progress' || current.currentPlayer !== botPlayer) {
+          return { ...current, isBotThinking: false }
+        }
 
         const botMove = getBotMove(current.board, botPlayer, current.difficulty)
         if (!botMove) return { ...current, isBotThinking: false }
@@ -125,7 +125,7 @@ export function useReversi(
     return () => {
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
     }
-  }, [state.currentPlayer, state.status, state.mode, state.humanPlayer])
+  }, [state.currentPlayer, state.status, state.mode, state.humanPlayer, state.difficulty])
 
   // Клик игрока по клетке
   const makeMove = useCallback(
@@ -145,7 +145,12 @@ export function useReversi(
           soundManager.playReversiFlip(idx)
         })
 
-        return applyMove(prev, row, col)
+        const next = applyMove(prev, row, col)
+        const botPlayer: ReversiPlayer = next.humanPlayer === 'black' ? 'white' : 'black'
+        if (next.mode === 'vs-bot' && next.status === 'in_progress' && next.currentPlayer === botPlayer) {
+          return { ...next, isBotThinking: true }
+        }
+        return next
       })
     },
     []
@@ -187,6 +192,9 @@ export function useReversi(
       if (prev.humanPlayer === player) return prev
       const next = createInitialState(prev.mode, prev.difficulty, player)
       next.scores = prev.scores
+      if (prev.mode === 'vs-bot' && player === 'white') {
+        next.isBotThinking = true
+      }
       return next
     })
     isSavedRef.current = false

@@ -61,8 +61,6 @@ function minimax(
   botPlayer: CheckersPlayer,
   currentPlayer: CheckersPlayer
 ): number {
-  const humanPlayer: CheckersPlayer = botPlayer === 'black' ? 'white' : 'black'
-
   if (depth === 0 || isTerminal(board, currentPlayer)) {
     if (isTerminal(board, currentPlayer)) {
       // Текущий игрок проиграл (нет ходов)

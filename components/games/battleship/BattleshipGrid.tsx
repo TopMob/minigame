@@ -2,20 +2,18 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Flame, Skull, Target, X } from 'lucide-react'
+import { Flame, Target, X } from 'lucide-react'
 import { canPlaceShip, getShipCoordinates } from '@/games/battleship/engine'
 import {
   COLUMN_LETTERS,
   ROW_NUMBERS,
   type CellData,
-  type PlacedShip,
   type ShipOrientation,
   type ShipType,
 } from '@/games/battleship/types'
 
 interface BattleshipGridProps {
   board: CellData[][]
-  fleet?: PlacedShip[]
   isEnemy?: boolean
   isPlacementMode?: boolean
   selectedSize?: ShipType | null
@@ -28,7 +26,6 @@ interface BattleshipGridProps {
 
 export function BattleshipGrid({
   board,
-  fleet = [],
   isEnemy = false,
   isPlacementMode = false,
   selectedSize = null,
