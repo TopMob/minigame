@@ -94,60 +94,6 @@ function applyHiddenSingles(grid: Grid): boolean {
   return changed
 }
 
-// Pointing Pairs — если кандидат в блоке ограничен одной строкой/столбцом, убираем его из остальных клеток строки/столбца
-export function applyPointingPairs(grid: Grid): boolean {
-  let changed = false
-
-  for (let boxIdx = 0; boxIdx < 9; boxIdx++) {
-    const box = BOX_INDICES[boxIdx]
-
-    for (const d of DIGITS) {
-      const positions: { row: number; col: number }[] = []
-      for (const cell of box) {
-        if (grid[cell.row][cell.col] === EMPTY && getCandidates(grid, cell.row, cell.col).has(d)) {
-          positions.push(cell)
-        }
-      }
-
-      if (positions.length < 2 || positions.length > 3) continue
-
-      // Все в одной строке?
-      const sameRow = positions.every((p) => p.row === positions[0].row)
-      if (sameRow) {
-        const row = positions[0].row
-        const posColSet = new Set(positions.map((p) => p.col))
-        for (let c = 0; c < GRID_SIZE; c++) {
-          if (posColSet.has(c)) continue
-          if (getBoxIndex(row, c) === boxIdx) continue
-          if (grid[row][c] === EMPTY && getCandidates(grid, row, c).has(d)) {
-            changed = true
-            grid[row][c] = EMPTY
-            // mutate notes instead of deferring? Wait, notes are dynamically generated.
-            // Actually, getCandidates computes candidates dynamically from the grid.
-            // We can't easily mutate notes because solver operates on a Grid (number[][]), not CellState[][].
-            // Pointing pairs require a different representation or we can just stick to backtracking.
-          }
-        }
-      }
-
-      // Все в одном столбце?
-      const sameCol = positions.every((p) => p.col === positions[0].col)
-      if (sameCol) {
-        const col = positions[0].col
-        const posRowSet = new Set(positions.map((p) => p.row))
-        for (let r = 0; r < GRID_SIZE; r++) {
-          if (posRowSet.has(r)) continue
-          if (getBoxIndex(r, col) === boxIdx) continue
-          if (grid[r][col] === EMPTY && getCandidates(grid, r, col).has(d)) {
-            changed = true
-          }
-        }
-      }
-    }
-  }
-
-  return changed
-}
 
 // Применяем логические техники до упора
 export function applyLogicTechniques(grid: Grid): void {

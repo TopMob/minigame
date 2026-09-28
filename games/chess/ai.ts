@@ -103,15 +103,7 @@ function getPieceSquareValue(pieceType: string, color: 'w' | 'b', row: number, c
   }
 }
 
-// Оценка позиции: положительная для белых, отрицательная для чёрных
-export function evaluateBoard(chess: Chess): number {
-  if (chess.isCheckmate()) {
-    return chess.turn() === 'w' ? -100000 : 100000
-  }
-  if (chess.isDraw() || chess.isStalemate() || chess.isThreefoldRepetition() || chess.isInsufficientMaterial()) {
-    return 0
-  }
-
+export function evaluateStatic(chess: Chess): number {
   let score = 0
   const board = chess.board()
 
@@ -132,11 +124,19 @@ export function evaluateBoard(chess: Chess): number {
     }
   }
 
-  // Бонус за мобильность (количество легальных ходов)
-  const mobility = chess.moves().length
-  score += (chess.turn() === 'w' ? 1 : -1) * mobility * 3
-
   return score
+}
+
+// Оценка позиции: положительная для белых, отрицательная для чёрных
+export function evaluateBoard(chess: Chess, depth: number = 0): number {
+  if (chess.isCheckmate()) {
+    return chess.turn() === 'w' ? -100000 - depth * 100 : 100000 + depth * 100
+  }
+  if (chess.isDraw() || chess.isStalemate() || chess.isThreefoldRepetition() || chess.isInsufficientMaterial()) {
+    return 0
+  }
+
+  return evaluateStatic(chess)
 }
 
 // Сортировка ходов для оптимизации альфа-бета отсечения
@@ -187,7 +187,7 @@ function quiescence(
   isMaximizing: boolean,
   maxQDepth: number
 ): number {
-  const standPat = evaluateBoard(chess)
+  const standPat = evaluateStatic(chess)
 
   if (maxQDepth <= 0) return standPat
 
@@ -241,14 +241,21 @@ function minimax(
     if (useQuiescence) {
       return quiescence(chess, alpha, beta, isMaximizing, 2)
     }
-    return evaluateBoard(chess)
-  }
-
-  if (chess.isGameOver()) {
-    return evaluateBoard(chess)
+    return evaluateStatic(chess)
   }
 
   const moves = orderMoves(chess.moves({ verbose: true }) as unknown as VerboseMove[])
+
+  if (moves.length === 0) {
+    if (chess.inCheck()) {
+      return isMaximizing ? -100000 - depth * 100 : 100000 + depth * 100
+    }
+    return 0 // пат
+  }
+
+  if (chess.isDraw()) {
+    return 0
+  }
 
   if (isMaximizing) {
     let maxEval = -Infinity
@@ -290,12 +297,12 @@ export function getBestMove(
   if (difficulty === 'easy') {
     if (Math.random() < 0.3) {
       const randomMove = rawMoves[Math.floor(Math.random() * rawMoves.length)]
-      return { from: randomMove.from, to: randomMove.to, promotion: 'q' }
+      return { from: randomMove.from, to: randomMove.to, promotion: randomMove.promotion || 'q' }
     }
 
     const scoredMoves = rawMoves.map((m) => {
       chess.move(m)
-      const score = evaluateBoard(chess) + (Math.random() * 50 - 25)
+      const score = evaluateBoard(chess, 1) + (Math.random() * 50 - 25)
       chess.undo()
       return { move: m, score }
     })
@@ -304,13 +311,12 @@ export function getBestMove(
       isMaximizing ? b.score - a.score : a.score - b.score
     )
 
-    // Берём из топ-3
     const pickIndex = Math.min(
       Math.floor(Math.random() * 3),
       scoredMoves.length - 1
     )
     const chosen = scoredMoves[pickIndex].move
-    return { from: chosen.from, to: chosen.to, promotion: 'q' }
+    return { from: chosen.from, to: chosen.to, promotion: chosen.promotion || 'q' }
   }
 
   // Средний уровень: глубина 2 с альфа-бета
@@ -331,7 +337,7 @@ export function getBestMove(
       }
     }
 
-    return { from: bestMove.from, to: bestMove.to, promotion: 'q' }
+    return { from: bestMove.from, to: bestMove.to, promotion: bestMove.promotion || 'q' }
   }
 
   // Сложный уровень: глубина 3
@@ -352,7 +358,7 @@ export function getBestMove(
       }
     }
 
-    return { from: bestMove.from, to: bestMove.to, promotion: 'q' }
+    return { from: bestMove.from, to: bestMove.to, promotion: bestMove.promotion || 'q' }
   }
 
   // Эксперт: глубина 3 с Quiescence Search (поиск форсированных взятий)
@@ -372,5 +378,5 @@ export function getBestMove(
     }
   }
 
-  return { from: bestMove.from, to: bestMove.to, promotion: 'q' }
+  return { from: bestMove.from, to: bestMove.to, promotion: bestMove.promotion || 'q' }
 }

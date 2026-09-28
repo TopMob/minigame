@@ -12,6 +12,7 @@ import {
   saveMinesweeperBestTime,
 } from '@/lib/storage/minesweeperSession'
 import { soundManager } from '@/lib/audio/sounds'
+import { saveGameRecord } from '@/lib/storage/records'
 
 export interface UseMinesweeperReturn {
   state: MinesweeperState
@@ -37,6 +38,7 @@ export function useMinesweeper(initialDifficulty: Difficulty = 'easy'): UseMines
   const [mode, setMode] = useState<'reveal' | 'flag'>('reveal')
   const [isPressing, setIsPressing] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recordedRef = useRef(false)
 
   // Таймер игры
   useEffect(() => {
@@ -66,11 +68,27 @@ export function useMinesweeper(initialDifficulty: Difficulty = 'easy'): UseMines
   useEffect(() => {
     saveMinesweeperSession(state)
 
-    if (state.status === 'won') {
+    if (state.status === 'won' && !recordedRef.current) {
+      recordedRef.current = true
       soundManager.playVictory()
       saveMinesweeperBestTime(state.difficulty, state.timeElapsed)
-    } else if (state.status === 'lost') {
+      saveGameRecord({
+        gameId: 'minesweeper',
+        difficulty: state.difficulty,
+        score: minesweeperEngine.getScore(state),
+        timeSeconds: state.timeElapsed,
+        won: true,
+      })
+    } else if (state.status === 'lost' && !recordedRef.current) {
+      recordedRef.current = true
       soundManager.playGameOver()
+      saveGameRecord({
+        gameId: 'minesweeper',
+        difficulty: state.difficulty,
+        score: 0,
+        timeSeconds: state.timeElapsed,
+        won: false,
+      })
     }
   }, [state])
 
@@ -107,11 +125,13 @@ export function useMinesweeper(initialDifficulty: Difficulty = 'easy'): UseMines
   )
 
   const restart = useCallback(() => {
+    recordedRef.current = false
     clearMinesweeperSession()
     setState((prev) => minesweeperEngine.createInitialState({ difficulty: prev.difficulty }))
   }, [])
 
   const setDifficulty = useCallback((diff: Difficulty) => {
+    recordedRef.current = false
     clearMinesweeperSession()
     setState(minesweeperEngine.createInitialState({ difficulty: diff }))
   }, [])

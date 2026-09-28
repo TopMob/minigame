@@ -61,29 +61,38 @@ function createPuzzle(solution: Grid, givens: number, rng: () => number): Grid {
   const totalCells = 81
   const toRemove = totalCells - givens
 
-  // Создаём список всех позиций и перемешиваем
+  // Создаём список всех позиций
   const positions: { row: number; col: number }[] = []
   for (let r = 0; r < GRID_SIZE; r++) {
     for (let c = 0; c < GRID_SIZE; c++) {
       positions.push({ row: r, col: c })
     }
   }
-  const shuffled = shuffle(positions, rng)
 
   let removed = 0
-  for (const pos of shuffled) {
-    if (removed >= toRemove) break
+  // Делаем до 4 проходов по оставшимся заполненным клеткам
+  for (let pass = 0; pass < 4 && removed < toRemove; pass++) {
+    const remaining = positions.filter((p) => puzzle[p.row][p.col] !== EMPTY)
+    const shuffled = shuffle(remaining, rng)
+    let passRemoved = 0
 
-    const backup = puzzle[pos.row][pos.col]
-    puzzle[pos.row][pos.col] = EMPTY
+    for (const pos of shuffled) {
+      if (removed >= toRemove) break
 
-    // Проверяем единственность решения
-    if (hasUniqueSolution(puzzle)) {
-      removed++
-    } else {
-      // Возвращаем обратно — удаление нарушает единственность
-      puzzle[pos.row][pos.col] = backup
+      const backup = puzzle[pos.row][pos.col]
+      puzzle[pos.row][pos.col] = EMPTY
+
+      // Проверяем единственность решения
+      if (hasUniqueSolution(puzzle)) {
+        removed++
+        passRemoved++
+      } else {
+        // Возвращаем обратно — удаление нарушает единственность
+        puzzle[pos.row][pos.col] = backup
+      }
     }
+
+    if (passRemoved === 0) break
   }
 
   return puzzle

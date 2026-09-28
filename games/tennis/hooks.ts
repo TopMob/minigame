@@ -10,6 +10,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { tennisEngine, createInitialScore } from './engine'
 import type { TennisState, TennisInput, TennisDifficulty } from './types'
 import { soundManager } from '@/lib/audio/sounds'
+import { saveGameRecord } from '@/lib/storage/records'
 
 export interface TennisUIState {
   score: TennisState['score']
@@ -78,7 +79,6 @@ export function useTennisEngine(
     time: 0,
   })
 
-  const hiddenRef = useRef(false)
   const recordedRef = useRef(false)
 
   // Синхронизация UI состояния (вызывается при изменении очков/фаз)
@@ -96,6 +96,19 @@ export function useTennisEngine(
       isSmash,
     })
   }, [])
+
+  // Сохранение рекорда матча при его завершении
+  useEffect(() => {
+    if (!uiState.matchOver || recordedRef.current) return
+    recordedRef.current = true
+    saveGameRecord({
+      gameId: 'pong',
+      difficulty: uiState.difficulty,
+      timeSeconds: Math.max(1, Math.round(stateRef.current.elapsedMs / 1000)),
+      score: tennisEngine.getScore(stateRef.current),
+      won: uiState.matchWinner === 'player',
+    })
+  }, [uiState.matchOver, uiState.difficulty, uiState.matchWinner])
 
   // ── Обработка движения мыши (пиксельное отслеживание 1:1) ──────────────────
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
@@ -194,15 +207,6 @@ export function useTennisEngine(
       container.removeEventListener('pointerdown', handlePointerDown)
     }
   }, [onMouseMove, onTouchMove, serve])
-
-  // Обработка видимости вкладки
-  useEffect(() => {
-    const onVisibility = () => {
-      hiddenRef.current = document.hidden
-    }
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [])
 
   return {
     uiState,

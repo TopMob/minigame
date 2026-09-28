@@ -146,6 +146,7 @@ export function applyMove(state: ReversiState, row: number, col: number): Revers
     currentPlayer: state.currentPlayer,
     pieces: { ...state.pieces },
     lastMove: state.lastMove ? { ...state.lastMove } : null,
+    scores: { ...state.scores },
   }
 
   const nextBoard = cloneBoard(state.board)
@@ -255,6 +256,7 @@ export function undoMove(state: ReversiState): ReversiState {
     recentFlips: [],
     status: 'in_progress',
     winner: null,
+    scores: prevSnapshot.scores ? { ...prevSnapshot.scores } : state.scores,
     passMessage: null,
     history: state.history.slice(0, targetIndex),
   }

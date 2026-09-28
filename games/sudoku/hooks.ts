@@ -6,6 +6,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { sudokuEngine, getSudokuHint } from './engine'
 import type { SudokuState, SudokuAction, Difficulty, Digit } from './types'
 import { loadSudokuSession, saveSudokuSession, clearSudokuSession } from '@/lib/storage/sudokuSession'
+import { saveGameRecord } from '@/lib/storage/records'
 
 interface HistoryEntry {
   state: SudokuState
@@ -48,15 +49,36 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recordedRef = useRef(false)
   const initialSeedRef = useRef(state.seed)
   const initialDifficultyRef = useRef(state.difficulty)
 
-  // Автосохранение активной сессии
+  // Автосохранение активной сессии и сохранение рекорда
   useEffect(() => {
     if (state.isComplete || state.isFailed) {
       clearSudokuSession()
     } else {
       saveSudokuSession(state)
+    }
+
+    if (state.isComplete && !recordedRef.current) {
+      recordedRef.current = true
+      saveGameRecord({
+        gameId: 'sudoku',
+        difficulty: state.difficulty,
+        score: sudokuEngine.getScore(state),
+        timeSeconds: state.timeElapsed,
+        won: true,
+      })
+    } else if (state.isFailed && !recordedRef.current) {
+      recordedRef.current = true
+      saveGameRecord({
+        gameId: 'sudoku',
+        difficulty: state.difficulty,
+        score: 0,
+        timeSeconds: state.timeElapsed,
+        won: false,
+      })
     }
   }, [state])
 
@@ -82,15 +104,21 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
     }
   }, [state.isComplete, state.isFailed, isPaused])
 
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const historyRef = useRef(history)
+  historyRef.current = history
+  const redoRef = useRef(redoStack)
+  redoRef.current = redoStack
+
   // Применить действие с сохранением истории
   const applyAction = useCallback((action: SudokuAction) => {
-    setState((prev) => {
-      if (!sudokuEngine.isValidAction(prev, action)) return prev
-      const next = sudokuEngine.applyAction(prev, action)
-      setHistory((h) => [...h, { state: prev, action }])
-      setRedoStack([])
-      return next
-    })
+    const current = stateRef.current
+    if (!sudokuEngine.isValidAction(current, action)) return
+    const next = sudokuEngine.applyAction(current, action)
+    setHistory((h) => [...h, { state: current, action }])
+    setRedoStack([])
+    setState(next)
   }, [])
 
   const placeDigit = useCallback(
@@ -115,14 +143,13 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
   )
 
   const applyHint = useCallback(() => {
-    setState((prev) => {
-      const hintAction = getSudokuHint(prev)
-      if (!hintAction) return prev
-      const next = sudokuEngine.applyAction(prev, hintAction)
-      setHistory((h) => [...h, { state: prev, action: hintAction }])
-      setRedoStack([])
-      return next
-    })
+    const current = stateRef.current
+    const hintAction = getSudokuHint(current)
+    if (!hintAction) return
+    const next = sudokuEngine.applyAction(current, hintAction)
+    setHistory((h) => [...h, { state: current, action: hintAction }])
+    setRedoStack([])
+    setState(next)
   }, [])
 
   const selectCell = useCallback((row: number, col: number) => {
@@ -134,25 +161,36 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
   }, [])
 
   const undo = useCallback(() => {
-    setHistory((h) => {
-      if (h.length === 0) return h
-      const last = h[h.length - 1]
-      setRedoStack((r) => [...r, { state: last.state, action: last.action }])
-      setState((prev) => ({ ...last.state, timeElapsed: prev.timeElapsed }))
-      return h.slice(0, -1)
+    const h = historyRef.current
+    if (h.length === 0) return
+    const last = h[h.length - 1]
+    const current = stateRef.current
+    setHistory(h.slice(0, -1))
+    setRedoStack((r) => [...r, { state: last.state, action: last.action }])
+    // Не откатываем ошибки и штраф за подсказки
+    setState({
+      ...last.state,
+      timeElapsed: current.timeElapsed,
+      errors: current.errors,
+      hintsUsed: current.hintsUsed,
+      selectedCell: current.selectedCell,
+      isNoteMode: current.isNoteMode,
     })
   }, [])
 
   const redo = useCallback(() => {
-    setRedoStack((r) => {
-      if (r.length === 0) return r
-      const last = r[r.length - 1]
-      setState((prev) => {
-        const next = sudokuEngine.applyAction(prev, last.action)
-        setHistory((h) => [...h, { state: prev, action: last.action }])
-        return next
-      })
-      return r.slice(0, -1)
+    const r = redoRef.current
+    if (r.length === 0) return
+    const last = r[r.length - 1]
+    const current = stateRef.current
+    const next = sudokuEngine.applyAction(current, last.action)
+    setRedoStack(r.slice(0, -1))
+    setHistory((h) => [...h, { state: current, action: last.action }])
+    setState({
+      ...next,
+      timeElapsed: current.timeElapsed,
+      errors: Math.max(current.errors, next.errors),
+      hintsUsed: Math.max(current.hintsUsed, next.hintsUsed),
     })
   }, [])
 
@@ -160,6 +198,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
   const resume = useCallback(() => setIsPaused(false), [])
 
   const newGame = useCallback((difficulty: Difficulty) => {
+    recordedRef.current = false
     clearSudokuSession()
     const newState = sudokuEngine.createInitialState({ difficulty })
     setState(newState)
@@ -171,6 +210,7 @@ export function useSudoku(initialDifficulty: Difficulty = 'easy'): UseSudokuRetu
   }, [])
 
   const restart = useCallback(() => {
+    recordedRef.current = false
     clearSudokuSession()
     const newState = sudokuEngine.createInitialState(
       { difficulty: initialDifficultyRef.current },

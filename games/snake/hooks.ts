@@ -8,6 +8,7 @@ import type { SnakeState, Direction, Difficulty } from './types'
 import { SNAKE_DIFFICULTY_CONFIG } from './types'
 import { getSnakeBestScore, saveSnakeBestScore } from '@/lib/storage/snakeSession'
 import { soundManager } from '@/lib/audio/sounds'
+import { saveGameRecord } from '@/lib/storage/records'
 
 export interface UseSnakeReturn {
   state: SnakeState
@@ -28,24 +29,26 @@ export function useSnake(initialDifficulty: Difficulty = 'medium'): UseSnakeRetu
 
   const inputQueueRef = useRef<Direction[]>([])
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const recordedRef = useRef(false)
 
   const changeDirection = useCallback((dir: Direction) => {
-    setState((curr) => {
-      const lastDir =
-        inputQueueRef.current.length > 0
-          ? inputQueueRef.current[inputQueueRef.current.length - 1]
-          : curr.direction
+    const curr = stateRef.current
+    const lastDir =
+      inputQueueRef.current.length > 0
+        ? inputQueueRef.current[inputQueueRef.current.length - 1]
+        : curr.direction
 
-      if (!isOppositeDirection(lastDir, dir) && lastDir !== dir) {
-        if (inputQueueRef.current.length < 2) {
-          inputQueueRef.current.push(dir)
-        }
+    if (!isOppositeDirection(lastDir, dir) && lastDir !== dir) {
+      if (inputQueueRef.current.length < 2) {
+        inputQueueRef.current.push(dir)
       }
-      return curr
-    })
+    }
   }, [])
 
   const restart = useCallback(() => {
+    recordedRef.current = false
     inputQueueRef.current = []
     setState((prev) => {
       const fresh = snakeEngine.createInitialState({
@@ -67,6 +70,7 @@ export function useSnake(initialDifficulty: Difficulty = 'medium'): UseSnakeRetu
   }, [])
 
   const setDifficulty = useCallback((diff: Difficulty) => {
+    recordedRef.current = false
     inputQueueRef.current = []
     setState((prev) => {
       const fresh = snakeEngine.createInitialState({
@@ -78,6 +82,20 @@ export function useSnake(initialDifficulty: Difficulty = 'medium'): UseSnakeRetu
     })
   }, [])
 
+  // Сохранение рекорда при окончании игры
+  useEffect(() => {
+    if (state.isOver && !recordedRef.current) {
+      recordedRef.current = true
+      saveGameRecord({
+        gameId: 'snake',
+        difficulty: state.difficulty,
+        score: state.score,
+        timeSeconds: state.score, // число очков
+        won: false,
+      })
+    }
+  }, [state.isOver, state.difficulty, state.score])
+
   // Игровой цикл тиков
   useEffect(() => {
     if (state.isOver || state.isPaused) return
@@ -85,38 +103,37 @@ export function useSnake(initialDifficulty: Difficulty = 'medium'): UseSnakeRetu
     const speed = SNAKE_DIFFICULTY_CONFIG[state.difficulty].speedMs
 
     const interval = setInterval(() => {
-      setState((prev) => {
-        if (prev.isOver || prev.isPaused) return prev
+      const current = stateRef.current
+      if (current.isOver || current.isPaused) return
 
-        let current = prev
-        // Достаем следующее направление из буфера ввода
-        if (inputQueueRef.current.length > 0) {
-          const nextDir = inputQueueRef.current.shift()!
-          current = snakeEngine.applyAction(current, {
-            type: 'setDirection',
-            direction: nextDir,
-          })
+      let prepared = current
+      // Достаем следующее направление из буфера ввода
+      if (inputQueueRef.current.length > 0) {
+        const nextDir = inputQueueRef.current.shift()!
+        prepared = snakeEngine.applyAction(prepared, {
+          type: 'setDirection',
+          direction: nextDir,
+        })
+      }
+
+      const next = snakeEngine.applyAction(prepared, { type: 'tick' })
+
+      // Звуковые эффекты снаружи setState
+      if (next.isOver && !current.isOver) {
+        soundManager.playGameOver()
+      } else if (next.score > current.score) {
+        if (current.foodType === 'golden') {
+          soundManager.playBonus()
+        } else {
+          soundManager.playEat()
         }
+      }
 
-        const next = snakeEngine.applyAction(current, { type: 'tick' })
+      if (next.score > 0) {
+        saveSnakeBestScore(next.difficulty, next.bestScore)
+      }
 
-        // Звуковые эффекты
-        if (next.isOver && !current.isOver) {
-          soundManager.playGameOver()
-        } else if (next.score > current.score) {
-          if (current.foodType === 'golden') {
-            soundManager.playBonus()
-          } else {
-            soundManager.playEat()
-          }
-        }
-
-        if (next.score > 0) {
-          saveSnakeBestScore(next.difficulty, next.bestScore)
-        }
-
-        return next
-      })
+      setState(next)
     }, speed)
 
     return () => clearInterval(interval)
@@ -125,8 +142,20 @@ export function useSnake(initialDifficulty: Difficulty = 'medium'): UseSnakeRetu
   // Клавиатурное управление
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      // Игнорируем системные комбинации (Ctrl+S, Ctrl+W, Cmd+...)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
         return
+      }
+
+      // Не перехватываем ввод в текстовых полях
+      if (e.target instanceof HTMLElement) {
+        if (e.target.isContentEditable || e.target.closest('input, textarea')) {
+          return
+        }
+        // Если фокус на кнопке, пробел должен нажимать кнопку
+        if (e.target.closest('button') && (e.key === ' ' || e.code === 'Space')) {
+          return
+        }
       }
 
       switch (e.key) {

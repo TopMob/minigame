@@ -1,4 +1,4 @@
-﻿// Хранилище для автосохранения активной сессии Судоку в localStorage
+// Хранилище для автосохранения активной сессии Судоку в localStorage
 
 import type { SudokuState, Digit } from '@/games/sudoku/types'
 

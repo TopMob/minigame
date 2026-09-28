@@ -83,8 +83,8 @@ export function tickOpponent3D(
     hitTimer,
   }
 
-  // Проверяем возможность удара
-  if (state.lastHitBy !== 'opponent' && state.phase === 'rally') {
+  // Проверяем возможность удара (только после отскока на половине соперника)
+  if (state.lastHitBy !== 'opponent' && state.phase === 'rally' && ball.bouncesOpponent === 1) {
     const hitCheck = checkOpponentHit(
       ball,
       prevBallZ,

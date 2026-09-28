@@ -69,14 +69,16 @@ export function useConnect4(
     const delay = state.difficulty === 'hard' ? 800 : state.difficulty === 'medium' ? 500 : 350
 
     botTimeoutRef.current = setTimeout(() => {
-      setState((current) => {
-        if (current.status !== 'in_progress' || current.currentPlayer !== botPlayer) {
-          return { ...current, isBotThinking: false }
+      const current = state
+      if (current.status !== 'in_progress' || current.currentPlayer !== botPlayer) return
+      const botCol = getBotMove(current.board, botPlayer, current.difficulty)
+      if (botCol === -1) return
+      soundManager.playDrop()
+      setState((prev) => {
+        if (prev.status !== 'in_progress' || prev.currentPlayer !== botPlayer) {
+          return { ...prev, isBotThinking: false }
         }
-        const botCol = getBotMove(current.board, botPlayer, current.difficulty)
-        if (botCol === -1) return { ...current, isBotThinking: false }
-        soundManager.playDrop()
-        return applyPlayerMove({ ...current, isBotThinking: false }, botCol)
+        return applyPlayerMove({ ...prev, isBotThinking: false }, botCol)
       })
     }, delay)
 

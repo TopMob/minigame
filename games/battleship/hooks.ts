@@ -163,7 +163,7 @@ export function useBattleship(initialDifficulty: BattleshipDifficulty = 'medium'
     return () => {
       if (botTurnTimeoutRef.current) clearTimeout(botTurnTimeoutRef.current)
     }
-  }, [state.currentTurn, state.phase, state.difficulty])
+  }, [state.currentTurn, state.phase, state.difficulty, state.shotsFired.bot])
 
   // --- ДЕЙСТВИЯ ФАЗЫ РАССТАНОВКИ ---
 
@@ -321,14 +321,22 @@ export function useBattleship(initialDifficulty: BattleshipDifficulty = 'medium'
           return prev
         }
 
-        soundManager.playBattleshipShot()
-
         const { nextBoard, nextFleet, shotResult } = executeShot(
           prev.botBoard,
           prev.botFleet,
           row,
           col
         )
+
+        // Воспроизведение звука выстрела и результата
+        soundManager.playBattleshipShot()
+        if (shotResult.result === 'sunk') {
+          soundManager.playBattleshipSink()
+        } else if (shotResult.result === 'hit') {
+          soundManager.playBattleshipHit()
+        } else {
+          soundManager.playBattleshipMiss()
+        }
 
         const isBotDead = isFleetDefeated(nextFleet)
         const newPlayerHits =
@@ -338,13 +346,10 @@ export function useBattleship(initialDifficulty: BattleshipDifficulty = 'medium'
 
         let logEntry = ''
         if (shotResult.result === 'sunk') {
-          soundManager.playBattleshipSink()
           logEntry = `Вы потопили ${shotResult.sunkShip?.name || 'корабль'} противника! Дополнительный выстрел.`
         } else if (shotResult.result === 'hit') {
-          soundManager.playBattleshipHit()
           logEntry = `Прямое попадание! Ваш дополнительный выстрел.`
         } else {
-          soundManager.playBattleshipMiss()
           logEntry = `Мимо! Ход переходит к противнику.`
         }
 

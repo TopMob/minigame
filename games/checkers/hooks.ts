@@ -62,7 +62,7 @@ export function useCheckers(initialDifficulty: CheckersDifficulty = 'medium') {
         if (current.status !== 'in_progress' || current.currentPlayer !== botPlayer) {
           return { ...current, isBotThinking: false }
         }
-        const move = getCheckersMove(current.board, botPlayer, current.difficulty)
+        const move = getCheckersMove(current.board, botPlayer, current.difficulty, current.allMoves)
         if (!move) return { ...current, isBotThinking: false }
         soundManager.playClick()
         return applyMove({ ...current, isBotThinking: false }, move)
@@ -72,7 +72,7 @@ export function useCheckers(initialDifficulty: CheckersDifficulty = 'medium') {
     return () => {
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
     }
-  }, [state.currentPlayer, state.status, state.humanPlayer, state.difficulty])
+  }, [state.currentPlayer, state.status, state.humanPlayer, state.difficulty, state.board])
 
   const handleCellClick = useCallback((row: number, col: number) => {
     setState((prev) => {
@@ -90,21 +90,32 @@ export function useCheckers(initialDifficulty: CheckersDifficulty = 'medium') {
 
   const restart = useCallback((difficulty?: CheckersDifficulty) => {
     if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
-    setState(createCheckersState(difficulty ?? state.difficulty))
+    setState((prev) => {
+      const next = createCheckersState(difficulty ?? prev.difficulty, prev.humanPlayer)
+      if (prev.humanPlayer === 'black') {
+        next.isBotThinking = true
+      }
+      return next
+    })
     isSavedRef.current = false
-  }, [state.difficulty])
+  }, [])
 
   const setDifficulty = useCallback((difficulty: CheckersDifficulty) => {
     if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
-    setState(createCheckersState(difficulty))
+    setState((prev) => {
+      const next = createCheckersState(difficulty, prev.humanPlayer)
+      if (prev.humanPlayer === 'black') {
+        next.isBotThinking = true
+      }
+      return next
+    })
     isSavedRef.current = false
   }, [])
 
   const setHumanPlayer = useCallback((player: CheckersPlayer) => {
     if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
     setState((prev) => {
-      const next = createCheckersState(prev.difficulty)
-      next.humanPlayer = player
+      const next = createCheckersState(prev.difficulty, player)
       if (player === 'black') {
         next.isBotThinking = true
       }

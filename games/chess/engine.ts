@@ -20,53 +20,59 @@ const PIECE_WEIGHTS: Record<PieceType, number> = {
 }
 
 // Расчёт захваченных фигур и материального преимущества
-export function calculateCapturedAndAdvantage(chess: Chess): {
+export function calculateCapturedAndAdvantage(
+  chess: Chess,
+  historyMoves?: MoveHistoryItem[]
+): {
   captured: CapturedPieces
   advantage: number
 } {
-  const initialCounts: Record<ChessColor, Record<PieceType, number>> = {
-    w: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 },
-    b: { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 },
-  }
-
-  const currentCounts: Record<ChessColor, Record<PieceType, number>> = {
-    w: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
-    b: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
-  }
-
-  const board = chess.board()
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const piece = board[r][c]
-      if (piece) {
-        currentCounts[piece.color][piece.type]++
-      }
-    }
-  }
-
   const captured: CapturedPieces = {
     w: [], // Белые фигуры, захваченные чёрными
     b: [], // Чёрные фигуры, захваченные белыми
   }
 
-  const pieceOrder: PieceType[] = ['q', 'r', 'b', 'n', 'p']
+  if (historyMoves) {
+    for (const item of historyMoves) {
+      if (item.captured) {
+        if (item.color === 'w') {
+          captured.b.push(item.captured)
+        } else {
+          captured.w.push(item.captured)
+        }
+      }
+    }
+  } else {
+    try {
+      const verboseHistory = chess.history({ verbose: true })
+      for (const m of verboseHistory) {
+        if (m.captured) {
+          if (m.color === 'w') {
+            captured.b.push(m.captured as PieceType)
+          } else {
+            captured.w.push(m.captured as PieceType)
+          }
+        }
+      }
+    } catch {}
+  }
+
+  const pieceRank: Record<PieceType, number> = { q: 5, r: 4, b: 3, n: 2, p: 1, k: 0 }
+  captured.w.sort((a, b) => pieceRank[b] - pieceRank[a])
+  captured.b.sort((a, b) => pieceRank[b] - pieceRank[a])
 
   let whiteMaterial = 0
   let blackMaterial = 0
-
-  for (const type of pieceOrder) {
-    const missingWhite = Math.max(0, initialCounts.w[type] - currentCounts.w[type])
-    for (let i = 0; i < missingWhite; i++) {
-      captured.w.push(type)
+  const board = chess.board()
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = board[r][c]
+      if (piece) {
+        const val = PIECE_WEIGHTS[piece.type] || 0
+        if (piece.color === 'w') whiteMaterial += val
+        else blackMaterial += val
+      }
     }
-
-    const missingBlack = Math.max(0, initialCounts.b[type] - currentCounts.b[type])
-    for (let i = 0; i < missingBlack; i++) {
-      captured.b.push(type)
-    }
-
-    whiteMaterial += currentCounts.w[type] * PIECE_WEIGHTS[type]
-    blackMaterial += currentCounts.b[type] * PIECE_WEIGHTS[type]
   }
 
   return {
@@ -183,8 +189,6 @@ export function executeMove(
       winner = 'draw'
     }
 
-    const { captured, advantage } = calculateCapturedAndAdvantage(chess)
-
     const historyItem: MoveHistoryItem = {
       san: moveResult.san,
       from: moveResult.from,
@@ -194,6 +198,9 @@ export function executeMove(
       captured: moveResult.captured as PieceType | undefined,
       check: isCheck,
     }
+
+    const newHistory = [...state.history, historyItem]
+    const { captured, advantage } = calculateCapturedAndAdvantage(chess, newHistory)
 
     const nextState: ChessState = {
       ...state,
@@ -205,7 +212,7 @@ export function executeMove(
       selectedSquare: null,
       validMoves: [],
       lastMove: { from: moveResult.from, to: moveResult.to },
-      history: [...state.history, historyItem],
+      history: newHistory,
       captured,
       materialAdvantage: advantage,
       pendingPromotion: null,
@@ -229,16 +236,18 @@ export function undoLastMove(state: ChessState): ChessState {
 
   try {
     const chess = new Chess()
-    const stepsToUndo = state.gameMode === 'ai' && state.history.length >= 2 ? 2 : 1
-    const newHistoryCount = state.history.length - stepsToUndo
+    const isBotTurn = state.gameMode === 'ai' && state.turn !== state.playerColor
+    const stepsToUndo = state.gameMode === 'ai' && !isBotTurn && state.history.length >= 2 ? 2 : 1
+    const newHistoryCount = Math.max(0, state.history.length - stepsToUndo)
+    const newHistory = state.history.slice(0, newHistoryCount)
 
     // Воспроизводим партию до нужного хода
     for (let i = 0; i < newHistoryCount; i++) {
-      chess.move(state.history[i].san)
+      chess.move(newHistory[i].san)
     }
 
-    const { captured, advantage } = calculateCapturedAndAdvantage(chess)
-    const lastItem = newHistoryCount > 0 ? state.history[newHistoryCount - 1] : null
+    const { captured, advantage } = calculateCapturedAndAdvantage(chess, newHistory)
+    const lastItem = newHistoryCount > 0 ? newHistory[newHistoryCount - 1] : null
 
     return {
       ...state,
@@ -250,7 +259,7 @@ export function undoLastMove(state: ChessState): ChessState {
       selectedSquare: null,
       validMoves: [],
       lastMove: lastItem ? { from: lastItem.from, to: lastItem.to } : null,
-      history: state.history.slice(0, newHistoryCount),
+      history: newHistory,
       captured,
       materialAdvantage: advantage,
       pendingPromotion: null,

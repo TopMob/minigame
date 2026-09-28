@@ -143,7 +143,7 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
       return {
         ...state,
         grid: newGrid,
-        status: state.status === 'idle' ? 'playing' : state.status,
+        status: state.status,
         minesRemaining: state.totalMines - flagCount,
       }
     }

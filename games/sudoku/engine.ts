@@ -211,6 +211,15 @@ export const sudokuEngine: GameEngine<SudokuState, SudokuAction, SudokuOptions> 
 
 // Хелпер: получить подсказку для текущего состояния
 export function getSudokuHint(state: SudokuState): SudokuAction | null {
+  // Если выбрана пустая или ошибочная клетка, подсказываем её в первую очередь
+  if (state.selectedCell) {
+    const { row, col } = state.selectedCell
+    const cell = state.grid[row]?.[col]
+    if (cell && !cell.isGiven && (cell.value === 0 || cell.value !== state.solution[row][col])) {
+      return { type: 'hint', row, col, digit: state.solution[row][col] as Digit }
+    }
+  }
+
   const currentGrid = cellStatesToGrid(state.grid)
   const hint = getHint(currentGrid, state.solution)
   if (!hint) return null

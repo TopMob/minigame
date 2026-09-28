@@ -15,8 +15,8 @@ interface ScoreOverlayProps {
 export function ScoreOverlay({ state, onServe, onRestart }: ScoreOverlayProps) {
   const { score, phase, pointWinner, faultReason, serveBy, matchWinner, matchOver, rallyCount, isSmash } = state
 
-  const playerPts = pointsToLabel(score.playerPoints)
-  const opponentPts = pointsToLabel(score.opponentPoints)
+  const playerPts = pointsToLabel(score.playerPoints, score.opponentPoints)
+  const opponentPts = pointsToLabel(score.opponentPoints, score.playerPoints)
 
   function getFaultText(reason: typeof faultReason): string {
     switch (reason) {

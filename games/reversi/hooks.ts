@@ -21,8 +21,9 @@ export function useReversi(
     createInitialState(initialMode, initialDifficulty, initialHumanPlayer)
   )
 
-  const isSavedRef = useRef(false)
+  const recordedGameSessionRef = useRef<number | null>(null)
   const botTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isSavedRef = useRef(false)
 
   // Очистка таймеров при размонтировании
   useEffect(() => {
@@ -41,11 +42,10 @@ export function useReversi(
   // Сохранение рекордов и окончание игры
   useEffect(() => {
     if (state.status === 'in_progress') {
-      isSavedRef.current = false
       return
     }
-    if (isSavedRef.current) return
-    isSavedRef.current = true
+    if (recordedGameSessionRef.current === state.startTime) return
+    recordedGameSessionRef.current = state.startTime
 
     const timeSeconds = Math.max(1, Math.round((Date.now() - state.startTime) / 1000))
     const isHumanWin = state.mode === 'vs-bot' && state.winner === state.humanPlayer
@@ -125,7 +125,7 @@ export function useReversi(
     return () => {
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
     }
-  }, [state.currentPlayer, state.status, state.mode, state.humanPlayer, state.difficulty])
+  }, [state.currentPlayer, state.status, state.mode, state.humanPlayer, state.difficulty, state.board])
 
   // Клик игрока по клетке
   const makeMove = useCallback(

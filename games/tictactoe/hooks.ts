@@ -79,16 +79,14 @@ export function useTicTacToe(initialMode: GameMode = 'vs-bot') {
     const delay = Math.floor(Math.random() * 150) + 350
 
     botTimeoutRef.current = setTimeout(() => {
-      setState((current) => {
-        if (current.status !== 'in_progress' || current.turn !== botSign) return current
-
-        const botMoveIndex = getBotMove(current.board, botSign, current.difficulty)
-        if (botMoveIndex >= 0) {
-          soundManager.playClick()
+      const botMoveIndex = getBotMove(state.board, botSign, state.difficulty)
+      if (botMoveIndex >= 0) {
+        soundManager.playClick()
+        setState((current) => {
+          if (current.status !== 'in_progress' || current.turn !== botSign) return current
           return ticTacToeEngine.applyAction(current, { type: 'BOT_MOVE', index: botMoveIndex })
-        }
-        return current
-      })
+        })
+      }
     }, delay)
 
     return () => {

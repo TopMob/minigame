@@ -198,8 +198,8 @@ export function checkPlayerHit(
   prevBallZ: number,
   player: TennisPlayer
 ): { hit: boolean; newBall: TennisBall; isSmash: boolean } {
-  // Игрок может отбить мяч только если он летит НА игрока (vz < 0)
-  if (ball.vz >= 0) {
+  // Игрок может отбить мяч только если он летит НА игрока (vz < 0) и уже отскочил ровно 1 раз на его половине
+  if (ball.vz >= 0 || ball.bouncesPlayer !== 1) {
     return { hit: false, newBall: ball, isSmash: false }
   }
 
@@ -279,8 +279,8 @@ export function checkOpponentHit(
   accuracy: number,
   power: number
 ): { hit: boolean; newBall: TennisBall } {
-  // Соперник отбивает мяч, летящий от игрока (vz > 0)
-  if (ball.vz <= 0) {
+  // Соперник отбивает мяч, летящий от игрока (vz > 0), только после отскока на половине соперника
+  if (ball.vz <= 0 || ball.bouncesOpponent !== 1) {
     return { hit: false, newBall: ball }
   }
 

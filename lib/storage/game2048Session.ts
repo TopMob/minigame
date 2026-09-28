@@ -1,4 +1,4 @@
-﻿// Автосохранение активной сессии и лучшего счета 2048 в localStorage
+// Автосохранение активной сессии и лучшего счета 2048 в localStorage
 
 import type { Game2048State } from '@/games/2048/types'
 

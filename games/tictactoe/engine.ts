@@ -153,8 +153,25 @@ export class TicTacToeEngine implements GameEngine<TicTacToeState, TicTacToeActi
   }
 
   getScore(state: TicTacToeState): number {
+    if (state.mode === 'vs-bot') {
+      const isHumanWin = state.winner === state.playerSign
+      const isDraw = state.status === 'draw'
+
+      if (isHumanWin) {
+        const baseScore = Math.max(100 - state.moveCount * 5, 50)
+        const mult = state.difficulty === 'hard' ? 3 : state.difficulty === 'medium' ? 2 : 1
+        return Math.round(baseScore * mult)
+      }
+
+      if (isDraw) {
+        const mult = state.difficulty === 'hard' ? 2 : state.difficulty === 'medium' ? 1.5 : 1
+        return Math.round(25 * mult)
+      }
+
+      return 0
+    }
+
     if (state.winner) {
-      // Больше очков за победу меньшим числом ходов
       return Math.max(100 - state.moveCount * 5, 50)
     }
     if (state.status === 'draw') {

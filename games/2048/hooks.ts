@@ -12,6 +12,7 @@ import {
   get2048BestScore,
   save2048BestScore,
 } from '@/lib/storage/game2048Session'
+import { saveGameRecord } from '@/lib/storage/records'
 
 export interface Use2048Return {
   state: Game2048State
@@ -39,6 +40,9 @@ export function use2048(): Use2048Return {
   const [timeElapsed, setTimeElapsed] = useState(() => session?.timeElapsed ?? 0)
   const [history, setHistory] = useState<Game2048State[]>([])
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const recordedRef = useRef(false)
 
   // Таймер партии
   useEffect(() => {
@@ -55,6 +59,16 @@ export function use2048(): Use2048Return {
   useEffect(() => {
     if (state.isOver) {
       clear2048Session()
+      if (!recordedRef.current) {
+        recordedRef.current = true
+        saveGameRecord({
+          gameId: '2048',
+          difficulty: 'medium',
+          score: state.score,
+          timeSeconds: timeElapsed,
+          won: state.isWon,
+        })
+      }
     } else {
       save2048Session(state, timeElapsed)
     }
@@ -65,17 +79,17 @@ export function use2048(): Use2048Return {
   }, [state, timeElapsed])
 
   const move = useCallback((direction: Direction) => {
-    setState((prev) => {
-      if (prev.isOver) return prev
-      const next = game2048Engine.applyAction(prev, { type: 'move', direction })
-      if (next !== prev) {
-        setHistory((h) => [...h.slice(-10), prev]) // сохраняем до 10 последних ходов
-      }
-      return next
-    })
+    const prev = stateRef.current
+    if (prev.isOver) return
+    const next = game2048Engine.applyAction(prev, { type: 'move', direction })
+    if (next !== prev) {
+      setHistory((h) => [...h.slice(-10), prev])
+      setState(next)
+    }
   }, [])
 
   const restart = useCallback(() => {
+    recordedRef.current = false
     clear2048Session()
     const fresh = game2048Engine.createInitialState({})
     fresh.bestScore = get2048BestScore()
@@ -88,7 +102,11 @@ export function use2048(): Use2048Return {
     setHistory((h) => {
       if (h.length === 0) return h
       const prev = h[h.length - 1]
-      setState(prev)
+      const currentBest = stateRef.current.bestScore
+      setState({
+        ...prev,
+        bestScore: Math.max(prev.bestScore, currentBest),
+      })
       return h.slice(0, -1)
     })
   }, [])
@@ -100,6 +118,11 @@ export function use2048(): Use2048Return {
   // Клавиатурное управление (Стрелки + WASD)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Не перехватываем системные комбинации клавиш (Ctrl+S, Ctrl+W, Cmd+...)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return
+      }
+
       // Игнорируем ввод, если фокус в инпуте
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return

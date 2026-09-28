@@ -83,18 +83,21 @@ function evaluateBoard(board: Board, maximizingPlayer: Connect4Player): number {
   return score
 }
 
-function isTerminal(board: Board): boolean {
-  if (checkDraw(board)) return true
-  // Проверяем победу любого игрока
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (board[r][c] !== null) {
-        const [win] = checkWin(board, r, c)
-        if (win) return true
-      }
+const PREFERRED_COLS = [3, 2, 4, 1, 5, 0, 6]
+
+function getOrderedAvailableCols(board: Board): number[] {
+  return PREFERRED_COLS.filter((c) => board[0][c] === null)
+}
+
+function makeMove(board: Board, col: number, player: Connect4Player): [Board, number] {
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (board[r][col] === null) {
+      const newBoard = board.map((row) => [...row])
+      newBoard[r][col] = player
+      return [newBoard, r]
     }
   }
-  return false
+  return [board, -1]
 }
 
 function minimax(
@@ -104,37 +107,50 @@ function minimax(
   beta: number,
   isMaximizing: boolean,
   botPlayer: Connect4Player,
-  humanPlayer: Connect4Player
+  humanPlayer: Connect4Player,
+  lastRow?: number,
+  lastCol?: number,
+  lastPlayer?: Connect4Player
 ): [number, number] {
-  const available = getAvailableCols(board)
-
-  if (depth === 0 || isTerminal(board)) {
-    if (isTerminal(board)) {
-      // Проверяем кто выиграл
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          if (board[r][c] !== null) {
-            const [win] = checkWin(board, r, c)
-            if (win) {
-              return [board[r][c] === botPlayer ? 100000 + depth : -(100000 + depth), -1]
-            }
-          }
-        }
-      }
-      return [0, -1] // ничья
+  if (lastRow !== undefined && lastCol !== undefined && lastPlayer !== undefined) {
+    const [won] = checkWin(board, lastRow, lastCol)
+    if (won) {
+      return [lastPlayer === botPlayer ? 100000 + depth : -(100000 + depth), -1]
     }
+  }
+
+  const available = getOrderedAvailableCols(board)
+  if (available.length === 0) {
+    return [0, -1] // Draw
+  }
+
+  if (depth === 0) {
     return [evaluateBoard(board, botPlayer), -1]
   }
 
-  let bestCol = available[Math.floor(available.length / 2)] // центр как дефолт
+  let bestCol = available[0]
 
   if (isMaximizing) {
     let maxScore = -Infinity
     for (const col of available) {
-      const [newBoard, row] = dropPiece(board, col, botPlayer)
+      const [newBoard, row] = makeMove(board, col, botPlayer)
       if (row === -1) continue
-      const [score] = minimax(newBoard, depth - 1, alpha, beta, false, botPlayer, humanPlayer)
-      if (score > maxScore) { maxScore = score; bestCol = col }
+      const [score] = minimax(
+        newBoard,
+        depth - 1,
+        alpha,
+        beta,
+        false,
+        botPlayer,
+        humanPlayer,
+        row,
+        col,
+        botPlayer
+      )
+      if (score > maxScore) {
+        maxScore = score
+        bestCol = col
+      }
       alpha = Math.max(alpha, score)
       if (alpha >= beta) break
     }
@@ -142,10 +158,24 @@ function minimax(
   } else {
     let minScore = Infinity
     for (const col of available) {
-      const [newBoard, row] = dropPiece(board, col, humanPlayer)
+      const [newBoard, row] = makeMove(board, col, humanPlayer)
       if (row === -1) continue
-      const [score] = minimax(newBoard, depth - 1, alpha, beta, true, botPlayer, humanPlayer)
-      if (score < minScore) { minScore = score; bestCol = col }
+      const [score] = minimax(
+        newBoard,
+        depth - 1,
+        alpha,
+        beta,
+        true,
+        botPlayer,
+        humanPlayer,
+        row,
+        col,
+        humanPlayer
+      )
+      if (score < minScore) {
+        minScore = score
+        bestCol = col
+      }
       beta = Math.min(beta, score)
       if (alpha >= beta) break
     }
@@ -155,9 +185,12 @@ function minimax(
 
 function getDepth(difficulty: Connect4Difficulty): number {
   switch (difficulty) {
-    case 'easy': return 2
-    case 'medium': return 4
-    case 'hard': return 7
+    case 'easy':
+      return 2
+    case 'medium':
+      return 4
+    case 'hard':
+      return 7
   }
 }
 
@@ -167,7 +200,7 @@ export function getBotMove(
   difficulty: Connect4Difficulty
 ): number {
   const humanPlayer: Connect4Player = botPlayer === 'red' ? 'yellow' : 'red'
-  const available = getAvailableCols(board)
+  const available = getOrderedAvailableCols(board)
   if (available.length === 0) return -1
 
   // На лёгком уровне: 35% случайных ходов

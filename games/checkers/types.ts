@@ -34,4 +34,5 @@ export interface CheckersState {
   startTime: number
   isBotThinking: boolean
   pieces: { black: number; white: number }  // количество шашек
+  positionHistory?: string[]                // история хэшей позиций для правила 3-кратного повторения
 }

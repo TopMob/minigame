@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { soundManager } from '@/lib/audio/sounds'
 import { saveGameRecord } from '@/lib/storage/records'
 import {
+  saveChessSession,
+  loadChessSession,
+  clearChessSession,
+} from '@/lib/storage/chessSession'
+import {
   createInitialChessState,
   executeMove,
   getValidMovesForSquare,
@@ -25,11 +30,13 @@ export function useChess(
   initialMode: GameMode = 'ai',
   initialColor: ChessColor = 'w'
 ) {
-  const [state, setState] = useState<ChessState>(() =>
-    createInitialChessState(initialDifficulty, initialMode, initialColor)
-  )
+  const [state, setState] = useState<ChessState>(() => {
+    const saved = loadChessSession()
+    if (saved) return saved
+    return createInitialChessState(initialDifficulty, initialMode, initialColor)
+  })
 
-  const isSavedRef = useRef(false)
+  const recordedGameSessionRef = useRef<number | null>(null)
   const botTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -38,15 +45,19 @@ export function useChess(
     }
   }, [])
 
+  // Автосохранение активной сессии
+  useEffect(() => {
+    saveChessSession(state)
+  }, [state])
+
   // Сохранение рекорда при завершении игры
   useEffect(() => {
     if (state.status === 'in_progress') {
-      isSavedRef.current = false
       return
     }
 
-    if (isSavedRef.current) return
-    isSavedRef.current = true
+    if (recordedGameSessionRef.current === state.startTime) return
+    recordedGameSessionRef.current = state.startTime
 
     const timeSeconds = Math.max(1, Math.round((Date.now() - state.startTime) / 1000))
     const isHumanWin = state.gameMode === 'ai' && state.winner === state.playerColor
@@ -85,13 +96,15 @@ export function useChess(
 
         if (!isSuccess) return prev
 
-        if (isCheck) {
-          soundManager.playChessCheck()
-        } else if (isCapture) {
-          soundManager.playCapture()
-        } else {
-          soundManager.playChessMove()
-        }
+        setTimeout(() => {
+          if (isCheck) {
+            soundManager.playChessCheck()
+          } else if (isCapture) {
+            soundManager.playCapture()
+          } else {
+            soundManager.playChessMove()
+          }
+        }, 0)
 
         const isBotTurnNext =
           nextState.gameMode === 'ai' &&
@@ -200,7 +213,8 @@ export function useChess(
       newColor?: ChessColor
     ) => {
       if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
-      isSavedRef.current = false
+      clearChessSession()
+      recordedGameSessionRef.current = null
       const targetDiff = newDiff ?? state.difficulty
       const targetMode = newMode ?? state.gameMode
       const targetColor = newColor ?? state.playerColor

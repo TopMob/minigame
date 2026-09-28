@@ -129,8 +129,14 @@ export const TENNIS_DIFFICULTY_CONFIG: Record<
   hard:   { label: 'Сложный', opponentSpeed: 340, opponentReaction: 70,  opponentAccuracy: 0.94, opponentPower: 0.95 },
 }
 
-/** Преобразование теннисных очков в строку (15, 30, 40, A) */
-export function pointsToLabel(n: number): string {
+/** Преобразование теннисных очков в строку (0, 15, 30, 40, A) с поддержкой ровно (деюс) и больше */
+export function pointsToLabel(points: number, opponentPoints?: number): string {
+  if (opponentPoints !== undefined) {
+    if (points >= 3 && opponentPoints >= 3) {
+      if (points === opponentPoints) return '40'
+      return points > opponentPoints ? 'A' : '40'
+    }
+  }
   const map: Record<number, string> = { 0: '0', 1: '15', 2: '30', 3: '40', 4: 'A' }
-  return map[n] ?? `${n}`
+  return map[points] ?? '40'
 }

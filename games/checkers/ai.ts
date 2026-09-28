@@ -106,9 +106,10 @@ function getDepth(difficulty: CheckersDifficulty): number {
 export function getCheckersMove(
   board: CheckersBoard,
   botPlayer: CheckersPlayer,
-  difficulty: CheckersDifficulty
+  difficulty: CheckersDifficulty,
+  candidateMoves?: CheckersMove[]
 ): CheckersMove | null {
-  const moves = getAllMoves(board, botPlayer)
+  const moves = candidateMoves && candidateMoves.length > 0 ? candidateMoves : getAllMoves(board, botPlayer)
   if (moves.length === 0) return null
 
   // Лёгкий: случайный ход

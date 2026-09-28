@@ -21,7 +21,6 @@ import {
 import { project3D } from '@/games/tennis/physics'
 import { tennisEngine } from '@/games/tennis/engine'
 import { soundManager } from '@/lib/audio/sounds'
-import { saveGameRecord } from '@/lib/storage/records'
 
 interface TennisCourtProps {
   stateRef: React.MutableRefObject<TennisState>
@@ -566,7 +565,6 @@ export const TennisCourt = memo(function TennisCourt({
   const trailRef = useRef<TrailItem[]>([])
   const shakeRef = useRef<{ x: number; y: number; power: number }>({ x: 0, y: 0, power: 0 })
   const lastTimeRef = useRef<number | null>(null)
-  const recordedMatchRef = useRef(false)
 
   // Предыдущие значения для детекта звуков, эффектов и синхронизации UI
   const prevBallState = useRef({
@@ -667,16 +665,8 @@ export const TennisCourt = memo(function TennisCourt({
         uiUpdated = true
       }
 
-      // 6. Окончание матча (сохранение рекорда)
-      if (nextState.matchOver && !recordedMatchRef.current) {
-        recordedMatchRef.current = true
-        saveGameRecord({
-          gameId: 'pong',
-          difficulty: nextState.difficulty,
-          timeSeconds: Math.round(nextState.elapsedMs / 1000),
-          score: tennisEngine.getScore(nextState),
-          won: nextState.matchWinner === 'player',
-        })
+      // 6. Окончание матча
+      if (nextState.matchOver && prev.phase !== 'gameEnd') {
         onStateChange(nextState, false)
         uiUpdated = true
       }

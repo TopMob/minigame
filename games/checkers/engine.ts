@@ -43,16 +43,30 @@ function countPieces(board: CheckersBoard): { black: number; white: number } {
   return { black, white }
 }
 
+export function hashCheckersPosition(board: CheckersBoard, player: CheckersPlayer): string {
+  let s = player + ':'
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const p = board[r][c]
+      if (!p) s += '.'
+      else s += p.player === 'white' ? (p.type === 'king' ? 'W' : 'w') : (p.type === 'king' ? 'B' : 'b')
+    }
+  }
+  return s
+}
+
 export function createCheckersState(
-  difficulty: CheckersDifficulty = 'medium'
+  difficulty: CheckersDifficulty = 'medium',
+  humanPlayer: CheckersPlayer = 'white'
 ): CheckersState {
   const board = createInitialBoard()
   const allMoves = getAllMoves(board, 'white')
+  const initialHash = hashCheckersPosition(board, 'white')
 
   return {
     board,
     currentPlayer: 'white',
-    humanPlayer: 'white',
+    humanPlayer,
     status: 'in_progress',
     winner: null,
     selectedCell: null,
@@ -61,8 +75,9 @@ export function createCheckersState(
     difficulty,
     scores: { black: 0, white: 0 },
     startTime: Date.now(),
-    isBotThinking: false,
+    isBotThinking: humanPlayer === 'black',
     pieces: countPieces(board),
+    positionHistory: [initialHash],
   }
 }
 
@@ -111,6 +126,40 @@ function getManMoves(
   return moves
 }
 
+/** Проверка: есть ли у дамки с клетки [fromR, fromC] возможность взятия следующей фигуры */
+function canKingCaptureFrom(
+  board: CheckersBoard,
+  fromR: number,
+  fromC: number,
+  justCaptured: [number, number],
+  player: CheckersPlayer
+): boolean {
+  const opponent: CheckersPlayer = player === 'black' ? 'white' : 'black'
+  for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+    let r = fromR + dr, c = fromC + dc
+    let foundOpponent: [number, number] | null = null
+
+    while (inBounds(r, c)) {
+      if (r === justCaptured[0] && c === justCaptured[1]) {
+        break
+      }
+      const cell = board[r][c]
+      if (cell?.player === player) break
+      if (cell?.player === opponent) {
+        if (foundOpponent) break
+        foundOpponent = [r, c]
+        r += dr; c += dc
+        continue
+      }
+      if (foundOpponent) {
+        return true
+      }
+      r += dr; c += dc
+    }
+  }
+  return false
+}
+
 /** Получить ходы для дамки (king) */
 function getKingMoves(
   board: CheckersBoard,
@@ -125,6 +174,7 @@ function getKingMoves(
   for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
     let r = row + dr, c = col + dc
     let foundOpponent: [number, number] | null = null
+    const lineMoves: CheckersMove[] = []
 
     while (inBounds(r, c)) {
       const cell = board[r][c]
@@ -140,7 +190,7 @@ function getKingMoves(
 
       // Пустая клетка
       if (foundOpponent) {
-        moves.push({
+        lineMoves.push({
           from: [row, col], to: [r, c],
           captures: [foundOpponent], isKingMove: true,
         })
@@ -149,6 +199,19 @@ function getKingMoves(
       }
 
       r += dr; c += dc
+    }
+
+    if (lineMoves.length > 0) {
+      // Правило русских шашек: если дамка может продолжить бой с некоторого поля,
+      // она обязана встать на поле, откуда бой продолжается
+      const continuations = lineMoves.filter((m) =>
+        canKingCaptureFrom(board, m.to[0], m.to[1], m.captures[0], player)
+      )
+      if (continuations.length > 0) {
+        moves.push(...continuations)
+      } else {
+        moves.push(...lineMoves)
+      }
     }
   }
 
@@ -225,6 +288,7 @@ function applyMoveToBoard(board: CheckersBoard, move: CheckersMove): CheckersBoa
 export function applyMove(state: CheckersState, move: CheckersMove): CheckersState {
   const newBoard = applyMoveToBoard(state.board, move)
   const pieces = countPieces(newBoard)
+  const botPlayer: CheckersPlayer = state.humanPlayer === 'black' ? 'white' : 'black'
 
   // После взятия — проверяем продолжение цепочного прыжка
   if (move.captures.length > 0) {
@@ -240,7 +304,7 @@ export function applyMove(state: CheckersState, move: CheckersMove): CheckersSta
         validMoves: continuations,
         allMoves: continuations,
         pieces,
-        isBotThinking: false,
+        isBotThinking: state.currentPlayer === botPlayer,
       }
     }
   }
@@ -253,11 +317,15 @@ export function applyMove(state: CheckersState, move: CheckersMove): CheckersSta
   let status: CheckersState['status'] = 'in_progress'
   let winner: CheckersPlayer | null = null
 
+  const posHash = hashCheckersPosition(newBoard, nextPlayer)
+  const history = [...(state.positionHistory || []), posHash]
+  const occurrences = history.filter((h) => h === posHash).length
+
   if (nextMoves.length === 0 || pieces[nextPlayer] === 0) {
     status = 'won'
     winner = state.currentPlayer
-  } else if (pieces.black + pieces.white <= 2) {
-    // Ничья при минимуме фигур (упрощённое правило)
+  } else if (pieces.black + pieces.white <= 2 || occurrences >= 3) {
+    // Ничья при 3-кратном повторении позиции или минимуме фигур
     status = 'draw'
   }
 
@@ -276,7 +344,8 @@ export function applyMove(state: CheckersState, move: CheckersMove): CheckersSta
     allMoves: nextMoves,
     scores: newScores,
     pieces,
-    isBotThinking: false,
+    isBotThinking: status === 'in_progress' && nextPlayer === botPlayer,
+    positionHistory: history,
   }
 }
 

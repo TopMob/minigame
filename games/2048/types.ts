@@ -1,4 +1,4 @@
-﻿// Типы для игры 2048
+// Типы для игры 2048
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 

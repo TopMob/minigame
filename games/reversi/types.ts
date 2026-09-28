@@ -21,6 +21,7 @@ export interface ReversiHistoryEntry {
   currentPlayer: ReversiPlayer
   pieces: Record<ReversiPlayer, number>
   lastMove: { row: number; col: number } | null
+  scores: Record<ReversiPlayer, number>
 }
 
 export interface ReversiState {
