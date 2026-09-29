@@ -9,7 +9,7 @@ const WordleGame = dynamic(
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <span className="text-4xl">🔤</span>
-          <span className="text-muted-foreground">Загрузка Словоцепи...</span>
+          <span className="text-muted-foreground">Загрузка Wordle...</span>
         </div>
       </div>
     ),

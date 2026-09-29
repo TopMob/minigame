@@ -1,4 +1,4 @@
-// Типы для игры Словоцепь (Wordle)
+// Типы для игры Wordle
 
 export type TileState = 'empty' | 'filled' | 'correct' | 'present' | 'absent'
 

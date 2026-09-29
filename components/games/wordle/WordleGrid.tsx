@@ -1,6 +1,6 @@
 'use client'
 
-// Сетка тайлов для Словоцепи — 6 строк × 5 столбцов
+// Сетка тайлов для Wordle — 6 строк × 5 столбцов
 
 import { motion } from 'framer-motion'
 import type { TileState } from '@/games/wordle/types'
@@ -16,11 +16,11 @@ interface WordleGridProps {
 }
 
 const TILE_COLORS: Record<TileState, string> = {
-  correct: 'bg-emerald-500 border-emerald-500 text-white',
-  present: 'bg-amber-500 border-amber-500 text-white',
-  absent: 'bg-muted border-muted-foreground/30 text-foreground',
-  filled: 'bg-card border-primary/50 text-foreground',
-  empty: 'bg-card border-border text-transparent',
+  correct: 'bg-emerald-600 border-emerald-500 text-white shadow-xs',
+  present: 'bg-amber-600 border-amber-500 text-white shadow-xs',
+  absent: 'bg-zinc-800/90 border-zinc-700/60 text-zinc-400',
+  filled: 'bg-card border-foreground/40 text-foreground shadow-xs',
+  empty: 'bg-card/40 border-border/80 text-transparent',
 }
 
 interface TileProps {
@@ -44,7 +44,7 @@ function WordleTile({ letter, state, delay = 0, isRevealing = false }: TileProps
         initial={{ rotateX: 0 }}
         animate={{ rotateX: [0, -90, 0] }}
         transition={{ duration: 0.5, delay, ease: 'easeInOut' }}
-        style={{ perspective: 250 }}
+        style={{ perspective: 300 }}
       >
         {letter}
       </motion.div>
@@ -60,7 +60,7 @@ function WordleTile({ letter, state, delay = 0, isRevealing = false }: TileProps
       `}
       animate={
         state === 'filled'
-          ? { scale: [1, 1.08, 1] }
+          ? { scale: [1, 1.1, 1] }
           : {}
       }
       transition={{ duration: 0.12 }}
@@ -79,7 +79,7 @@ export function WordleGrid({
   shake,
 }: WordleGridProps) {
   return (
-    <div className="flex flex-col gap-2" role="grid" aria-label="Игровое поле Словоцепь">
+    <div className="flex flex-col gap-2 select-none" role="grid" aria-label="Игровое поле Wordle">
       {Array.from({ length: MAX_GUESSES }, (_, rowIdx) => {
         const isCurrentRow = rowIdx === currentRow
         const isGuessed = rowIdx < currentRow
@@ -89,27 +89,27 @@ export function WordleGrid({
         const letters: string[] = isCurrentRow
           ? [...currentGuess, ...new Array(WORD_LENGTH - currentGuess.length).fill('')]
           : isGuessed
-            ? guesses[rowIdx]
+            ? guesses[rowIdx] || new Array(WORD_LENGTH).fill('')
             : new Array(WORD_LENGTH).fill('')
 
         const states: TileState[] = isCurrentRow
           ? letters.map((l) => (l ? 'filled' : 'empty'))
           : isGuessed
-            ? tileStates[rowIdx]
+            ? tileStates[rowIdx] || new Array(WORD_LENGTH).fill('empty')
             : new Array(WORD_LENGTH).fill('empty')
 
         return (
           <motion.div
             key={rowIdx}
             className="flex gap-2"
-            animate={isCurrentRow && shake ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : {}}
+            animate={isCurrentRow && shake ? { x: [0, -9, 9, -7, 7, -4, 4, 0] } : {}}
             transition={{ duration: 0.45 }}
           >
             {letters.map((letter, colIdx) => (
               <WordleTile
                 key={colIdx}
                 letter={letter}
-                state={states[colIdx]}
+                state={states[colIdx] || 'empty'}
                 delay={isRevealing ? colIdx * 0.18 : 0}
                 isRevealing={isRevealing}
               />

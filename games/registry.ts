@@ -66,7 +66,7 @@ export const GAME_REGISTRY: GameMeta[] = [
   },
   {
     id: 'wordle',
-    name: 'Словоцепь',
+    name: 'Wordle',
     icon: '🔤',
     category: 'word',
     path: '/wordle',

@@ -1,6 +1,6 @@
 'use client'
 
-// Клавиатура для Словоцепи — русская раскладка ЙЦУКЕН с цветовыми подсказками
+// Клавиатура для Wordle — русская раскладка ЙЦУКЕН с цветовыми подсказками
 
 import { motion } from 'framer-motion'
 import { Delete } from 'lucide-react'
@@ -16,11 +16,11 @@ interface WordleKeyboardProps {
 }
 
 const KEY_COLORS: Record<TileState, string> = {
-  correct: 'bg-emerald-500 border-emerald-600 text-white hover:bg-emerald-600',
-  present: 'bg-amber-500 border-amber-600 text-white hover:bg-amber-600',
-  absent: 'bg-muted/80 border-muted-foreground/20 text-muted-foreground hover:bg-muted',
-  filled: 'bg-card border-border text-foreground hover:bg-accent',
-  empty: 'bg-card border-border text-foreground hover:bg-accent',
+  correct: 'bg-emerald-600 border-emerald-500 text-white shadow-sm hover:bg-emerald-500 font-extrabold',
+  present: 'bg-amber-600 border-amber-500 text-white shadow-sm hover:bg-amber-500 font-extrabold',
+  absent: 'bg-zinc-800/80 border-zinc-700/50 text-zinc-500 hover:bg-zinc-800 opacity-60',
+  filled: 'bg-card border-border/80 text-foreground hover:bg-accent/80',
+  empty: 'bg-card/90 border-border text-foreground hover:bg-accent hover:border-foreground/20',
 }
 
 export function WordleKeyboard({
@@ -32,19 +32,19 @@ export function WordleKeyboard({
   onEnter,
 }: WordleKeyboardProps) {
   return (
-    <div className="flex flex-col items-center gap-1.5" role="group" aria-label="Клавиатура">
+    <div className="flex flex-col items-center gap-1.5 w-full max-w-md mx-auto px-1 select-none" role="group" aria-label="Клавиатура">
       {rows.map((row, ri) => (
-        <div key={ri} className="flex gap-1">
+        <div key={ri} className="flex gap-1 justify-center w-full">
           {/* Enter в начале третьей строки */}
           {ri === 2 && (
             <motion.button
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.94 }}
               onClick={onEnter}
               disabled={disabled}
-              className="h-12 px-2 sm:px-3 rounded-xl border text-[11px] sm:text-xs font-bold uppercase tracking-wide
-                bg-card border-border text-foreground hover:bg-accent transition-colors cursor-pointer disabled:opacity-40"
+              className="h-11 sm:h-12 px-2.5 sm:px-3 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs font-bold uppercase tracking-wider
+                bg-card border-border text-foreground hover:bg-accent hover:border-foreground/30 transition-all cursor-pointer disabled:opacity-40 shadow-xs"
             >
-              ↵ Enter
+              Ввод
             </motion.button>
           )}
 
@@ -55,13 +55,15 @@ export function WordleKeyboard({
             return (
               <motion.button
                 key={letter}
-                whileTap={{ scale: 0.88 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => onLetter(letter)}
                 disabled={disabled}
                 aria-label={`Буква ${letter}`}
                 className={`
-                  h-12 w-9 sm:w-10 rounded-xl border text-sm sm:text-base font-bold
-                  transition-colors cursor-pointer disabled:opacity-40 select-none
+                  flex-1 max-w-[34px] sm:max-w-[40px] h-11 sm:h-12 rounded-lg sm:rounded-xl border
+                  text-xs sm:text-sm md:text-base font-bold
+                  transition-all duration-150 cursor-pointer disabled:opacity-40 select-none shadow-xs
+                  flex items-center justify-center
                   ${colorClass}
                 `}
               >
@@ -73,12 +75,12 @@ export function WordleKeyboard({
           {/* Backspace в конце третьей строки */}
           {ri === 2 && (
             <motion.button
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.94 }}
               onClick={onDelete}
               disabled={disabled}
-              aria-label="Удалить последнюю букву"
-              className="h-12 px-2 sm:px-3 rounded-xl border
-                bg-card border-border text-foreground hover:bg-accent transition-colors cursor-pointer disabled:opacity-40"
+              aria-label="Удалить букву"
+              className="h-11 sm:h-12 px-2.5 sm:px-3 rounded-lg sm:rounded-xl border
+                bg-card border-border text-foreground hover:bg-accent hover:border-foreground/30 transition-all cursor-pointer disabled:opacity-40 shadow-xs flex items-center justify-center"
             >
               <Delete className="h-4 w-4" />
             </motion.button>

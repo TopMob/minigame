@@ -1,4 +1,4 @@
-// Движок игры Словоцепь (Wordle) — чистый TypeScript
+// Движок игры Wordle — чистый TypeScript
 
 import type { TileState, WordleState } from './types'
 import { getDailyWord, getRandomWord } from './words'
@@ -6,7 +6,7 @@ import { getDailyWord, getRandomWord } from './words'
 export const WORD_LENGTH = 5
 export const MAX_GUESSES = 6
 export const RUSSIAN_KEYBOARD_ROWS = [
-  ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х'],
+  ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х', 'Ъ'],
   ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
   ['Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю'],
 ]
