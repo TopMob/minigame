@@ -135,9 +135,9 @@ export function BattleshipGame() {
           {DIFFICULTIES.map((d) => (
             <button
               key={d.id}
-              onClick={() => isPlacement && setDifficulty(d.id)}
+              onClick={() => isPlacement && state.difficulty !== d.id && setDifficulty(d.id)}
               disabled={!isPlacement}
-              className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${
+              className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
                 state.difficulty === d.id
                   ? 'border-cyan-500 bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 font-bold shadow-xs'
                   : 'border-border/60 text-muted-foreground hover:text-foreground'

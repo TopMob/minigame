@@ -88,8 +88,11 @@ export function useMemory(initialDifficulty: MemoryDifficulty = 'medium') {
   }, [state.difficulty])
 
   const setDifficulty = useCallback((difficulty: MemoryDifficulty) => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-    setState(createMemoryState(difficulty))
+    setState((prev) => {
+      if (prev.difficulty === difficulty) return prev
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+      return createMemoryState(difficulty)
+    })
     isSavedRef.current = false
   }, [])
 

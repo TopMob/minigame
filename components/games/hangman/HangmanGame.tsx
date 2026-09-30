@@ -36,7 +36,7 @@ export function HangmanGame() {
   const hpPercent = (remainingAttempts / state.maxWrong) * 100
 
   return (
-    <div className="relative flex flex-col items-center gap-5 w-full max-w-lg mx-auto px-4 py-2 select-none">
+    <div className="relative flex flex-col items-center gap-5 w-full max-w-xl mx-auto px-3 sm:px-4 py-2 select-none">
       {isWon && <Confetti />}
 
       {/* ── Заголовок ── */}
@@ -64,8 +64,12 @@ export function HangmanGame() {
         {DIFFICULTIES.map((d) => (
           <button
             key={d.id}
-            onClick={() => setDifficulty(d.id)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+            onClick={() => {
+              if (state.difficulty !== d.id) {
+                setDifficulty(d.id)
+              }
+            }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors duration-150 cursor-pointer ${
               state.difficulty === d.id
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'border-border bg-card/50 text-muted-foreground hover:text-foreground'
@@ -77,10 +81,10 @@ export function HangmanGame() {
       </div>
 
       {/* ── Основная игровая область ── */}
-      <div className="w-full bg-card/60 border border-border rounded-3xl p-4 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+      <div className="w-full bg-card/60 border border-border rounded-3xl p-4 sm:p-6 shadow-sm overflow-hidden">
+        <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start w-full">
           {/* SVG виселица */}
-          <div className="w-[160px] sm:w-[180px] shrink-0">
+          <div className="w-[150px] sm:w-[170px] shrink-0">
             <HangmanFigure
               wrongCount={state.wrongLetters.length}
               maxWrong={state.maxWrong}
@@ -89,11 +93,11 @@ export function HangmanGame() {
           </div>
 
           {/* Правая часть: подсказка, слово, статус */}
-          <div className="flex-1 flex flex-col items-center sm:items-start gap-4 w-full">
+          <div className="flex-1 min-w-0 flex flex-col items-center sm:items-start gap-4 w-full">
             {/* Подсказка */}
-            <div className="flex items-center gap-2 bg-muted/50 rounded-2xl px-4 py-2 text-sm font-medium text-muted-foreground w-full">
-              <span className="text-base">💡</span>
-              <span>{state.hint}</span>
+            <div className="flex items-center gap-2 bg-muted/50 rounded-2xl px-3.5 py-2 text-sm font-medium text-muted-foreground w-full break-words">
+              <span className="text-base shrink-0">💡</span>
+              <span className="min-w-0 break-words">{state.hint}</span>
             </div>
 
             {/* Индикатор оставшихся попыток */}

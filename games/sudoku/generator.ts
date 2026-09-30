@@ -69,30 +69,22 @@ function createPuzzle(solution: Grid, givens: number, rng: () => number): Grid {
     }
   }
 
+  const shuffled = shuffle(positions, rng)
   let removed = 0
-  // Делаем до 4 проходов по оставшимся заполненным клеткам
-  for (let pass = 0; pass < 4 && removed < toRemove; pass++) {
-    const remaining = positions.filter((p) => puzzle[p.row][p.col] !== EMPTY)
-    const shuffled = shuffle(remaining, rng)
-    let passRemoved = 0
 
-    for (const pos of shuffled) {
-      if (removed >= toRemove) break
+  for (const pos of shuffled) {
+    if (removed >= toRemove) break
 
-      const backup = puzzle[pos.row][pos.col]
-      puzzle[pos.row][pos.col] = EMPTY
+    const backup = puzzle[pos.row][pos.col]
+    puzzle[pos.row][pos.col] = EMPTY
 
-      // Проверяем единственность решения
-      if (hasUniqueSolution(puzzle)) {
-        removed++
-        passRemoved++
-      } else {
-        // Возвращаем обратно — удаление нарушает единственность
-        puzzle[pos.row][pos.col] = backup
-      }
+    // Проверяем единственность решения
+    if (hasUniqueSolution(puzzle)) {
+      removed++
+    } else {
+      // Возвращаем обратно — удаление нарушает единственность
+      puzzle[pos.row][pos.col] = backup
     }
-
-    if (passRemoved === 0) break
   }
 
   return puzzle

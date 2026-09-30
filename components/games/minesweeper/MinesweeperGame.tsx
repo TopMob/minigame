@@ -133,7 +133,7 @@ export function MinesweeperGame() {
   return (
     <div
       className={cn(
-        'flex flex-col items-center gap-3.5 w-full px-2 transition-all select-none',
+        'flex flex-col items-center gap-3.5 w-full px-2 select-none',
         state.difficulty === 'hard' || (state.difficulty === 'custom' && state.cols > 18)
           ? 'max-w-[1100px]'
           : 'max-w-[650px]'
@@ -187,7 +187,9 @@ export function MinesweeperGame() {
                   setIsCustomOpen((prev) => !prev)
                 } else {
                   setIsCustomOpen(false)
-                  setDifficulty(d.id)
+                  if (state.difficulty !== d.id) {
+                    setDifficulty(d.id)
+                  }
                 }
               }}
               className="text-xs font-semibold h-8 px-3"

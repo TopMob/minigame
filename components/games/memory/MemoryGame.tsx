@@ -87,8 +87,8 @@ export function MemoryGame() {
         {DIFFICULTIES.map((d) => (
           <button
             key={d.id}
-            onClick={() => setDifficulty(d.id)}
-            className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+            onClick={() => state.difficulty !== d.id && setDifficulty(d.id)}
+            className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
               state.difficulty === d.id
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'border-border bg-card/50 text-muted-foreground hover:text-foreground'

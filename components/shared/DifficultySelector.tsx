@@ -18,7 +18,6 @@ const DIFFICULTY_LABELS: Record<string, string> = {
   daily: 'Ежедневный',
 }
 
-// Селектор сложности для игр
 export function DifficultySelector({
   difficulties,
   selected,
@@ -26,16 +25,23 @@ export function DifficultySelector({
 }: DifficultySelectorProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      {difficulties.map((d) => (
-        <Button
-          key={d}
-          variant={selected === d ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => onChange(d)}
-        >
-          {DIFFICULTY_LABELS[d] || d}
-        </Button>
-      ))}
+      {difficulties.map((d) => {
+        const isSelected = selected === d
+        return (
+          <Button
+            key={d}
+            variant={isSelected ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              if (!isSelected) {
+                onChange(d)
+              }
+            }}
+          >
+            {DIFFICULTY_LABELS[d] || d}
+          </Button>
+        )
+      })}
     </div>
   )
 }

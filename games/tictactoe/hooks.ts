@@ -126,7 +126,10 @@ export function useTicTacToe(initialMode: GameMode = 'vs-bot') {
   }, [])
 
   const setDifficulty = useCallback((difficulty: Difficulty) => {
-    setState((prev) => ticTacToeEngine.applyAction(prev, { type: 'SET_DIFFICULTY', difficulty }))
+    setState((prev) => {
+      if (prev.difficulty === difficulty) return prev
+      return ticTacToeEngine.applyAction(prev, { type: 'SET_DIFFICULTY', difficulty })
+    })
   }, [])
 
   const setPlayerSign = useCallback((sign: Player) => {

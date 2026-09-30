@@ -57,7 +57,8 @@ export function hashCheckersPosition(board: CheckersBoard, player: CheckersPlaye
 
 export function createCheckersState(
   difficulty: CheckersDifficulty = 'medium',
-  humanPlayer: CheckersPlayer = 'white'
+  humanPlayer: CheckersPlayer = 'white',
+  gameMode: import('./types').CheckersGameMode = 'ai'
 ): CheckersState {
   const board = createInitialBoard()
   const allMoves = getAllMoves(board, 'white')
@@ -67,6 +68,7 @@ export function createCheckersState(
     board,
     currentPlayer: 'white',
     humanPlayer,
+    gameMode,
     status: 'in_progress',
     winner: null,
     selectedCell: null,
@@ -75,7 +77,7 @@ export function createCheckersState(
     difficulty,
     scores: { black: 0, white: 0 },
     startTime: Date.now(),
-    isBotThinking: humanPlayer === 'black',
+    isBotThinking: gameMode === 'ai' && humanPlayer === 'black',
     pieces: countPieces(board),
     positionHistory: [initialHash],
   }
@@ -304,7 +306,7 @@ export function applyMove(state: CheckersState, move: CheckersMove): CheckersSta
         validMoves: continuations,
         allMoves: continuations,
         pieces,
-        isBotThinking: state.currentPlayer === botPlayer,
+        isBotThinking: state.gameMode === 'ai' && state.currentPlayer === botPlayer,
       }
     }
   }
@@ -344,7 +346,7 @@ export function applyMove(state: CheckersState, move: CheckersMove): CheckersSta
     allMoves: nextMoves,
     scores: newScores,
     pieces,
-    isBotThinking: status === 'in_progress' && nextPlayer === botPlayer,
+    isBotThinking: state.gameMode === 'ai' && status === 'in_progress' && nextPlayer === botPlayer,
     positionHistory: history,
   }
 }

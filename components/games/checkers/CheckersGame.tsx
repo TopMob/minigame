@@ -3,7 +3,7 @@
 // Главный компонент игры Шашки
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { RotateCcw, Volume2, VolumeX, Crown } from 'lucide-react'
+import { RotateCcw, Volume2, VolumeX, Crown, Bot, Users } from 'lucide-react'
 import { useState } from 'react'
 import { useCheckers } from '@/games/checkers/hooks'
 import { Button } from '@/components/ui/button'
@@ -24,21 +24,21 @@ const PLAYER_LABELS: Record<CheckersPlayer, string> = {
 }
 
 export function CheckersGame() {
-  const { state, handleCellClick, restart, setDifficulty, setHumanPlayer } = useCheckers()
+  const { state, handleCellClick, restart, setDifficulty, setHumanPlayer, setGameMode } = useCheckers()
   const [muted, setMuted] = useState(soundManager.isMuted)
   const toggleMute = () => setMuted(soundManager.toggleMute())
 
   const isWon = state.status === 'won'
   const isDraw = state.status === 'draw'
   const isOver = isWon || isDraw
-  const isUserWin = isWon && state.winner === state.humanPlayer
+  const isUserWin = state.gameMode === 'ai' ? (isWon && state.winner === state.humanPlayer) : false
   const botPlayer: CheckersPlayer = state.humanPlayer === 'black' ? 'white' : 'black'
 
   const isLightCell = (r: number, c: number) => (r + c) % 2 === 0
 
   return (
     <div className="relative flex flex-col items-center gap-4 w-full max-w-xl mx-auto px-4 py-2 select-none">
-      {isUserWin && <Confetti />}
+      {((state.gameMode === 'ai' && isUserWin) || (state.gameMode === 'pvp' && isWon)) && <Confetti />}
 
       {/* Заголовок */}
       <div className="flex items-center justify-between w-full">
@@ -58,51 +58,86 @@ export function CheckersGame() {
         </div>
       </div>
 
-      {/* Настройки */}
-      <div className="flex flex-wrap gap-2 justify-center items-center">
-        <div className="flex gap-1.5">
-          {DIFFICULTIES.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setDifficulty(d.id)}
-              className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
-                state.difficulty === d.id
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1.5">
+      {/* Настройки режима */}
+      <div className="flex flex-wrap gap-2.5 justify-center items-center">
+        {/* Переключатель AI / PvP */}
+        <div className="flex items-center gap-1 bg-stone-900/60 p-1 rounded-xl border border-stone-800">
           <button
-            onClick={() => setHumanPlayer('white')}
-            className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
-              state.humanPlayer === 'white'
-                ? 'border-stone-300 bg-stone-100/10 text-foreground font-bold'
-                : 'border-border text-muted-foreground hover:text-foreground'
+            type="button"
+            onClick={() => setGameMode('ai')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              state.gameMode === 'ai'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            ⬜ Белые
+            <Bot className="w-3.5 h-3.5" />
+            <span>Против ИИ</span>
           </button>
           <button
-            onClick={() => setHumanPlayer('black')}
-            className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
-              state.humanPlayer === 'black'
-                ? 'border-stone-700 bg-stone-700/20 text-foreground font-bold'
-                : 'border-border text-muted-foreground hover:text-foreground'
+            type="button"
+            onClick={() => setGameMode('pvp')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              state.gameMode === 'pvp'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            ⬛ Чёрные
+            <Users className="w-3.5 h-3.5" />
+            <span>Вдвоём</span>
           </button>
         </div>
+
+        {/* Настройки для режима AI */}
+        {state.gameMode === 'ai' && (
+          <>
+            <div className="flex gap-1.5">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setDifficulty(d.id)}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                    state.difficulty === d.id
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setHumanPlayer('white')}
+                className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                  state.humanPlayer === 'white'
+                    ? 'border-stone-300 bg-stone-100/10 text-foreground font-bold'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                ⬜ Белые
+              </button>
+              <button
+                onClick={() => setHumanPlayer('black')}
+                className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                  state.humanPlayer === 'black'
+                    ? 'border-stone-700 bg-stone-700/20 text-foreground font-bold'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                ⬛ Чёрные
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Счёт и статус */}
       <div className="flex items-center gap-6">
         <div className="text-center">
-          <div className="text-[10px] text-muted-foreground uppercase font-medium">⬛ Чёрные {state.humanPlayer === 'black' ? '(ты)' : '(бот)'}</div>
+          <div className="text-[10px] text-muted-foreground uppercase font-medium">
+            ⬛ Чёрные {state.gameMode === 'ai' ? (state.humanPlayer === 'black' ? '(ты)' : '(бот)') : '(Игрок 2)'}
+          </div>
           <div className="text-xl font-black">{state.pieces.black}<span className="text-muted-foreground text-xs font-normal"> шт</span></div>
         </div>
         <div className="text-center">
@@ -110,19 +145,31 @@ export function CheckersGame() {
           <div className="text-sm font-bold">{state.scores.black} : {state.scores.white}</div>
         </div>
         <div className="text-center">
-          <div className="text-[10px] text-muted-foreground uppercase font-medium">⬜ Белые {state.humanPlayer === 'white' ? '(ты)' : '(бот)'}</div>
+          <div className="text-[10px] text-muted-foreground uppercase font-medium">
+            ⬜ Белые {state.gameMode === 'ai' ? (state.humanPlayer === 'white' ? '(ты)' : '(бот)') : '(Игрок 1)'}
+          </div>
           <div className="text-xl font-black">{state.pieces.white}<span className="text-muted-foreground text-xs font-normal"> шт</span></div>
         </div>
       </div>
 
       {/* Статус хода */}
       {!isOver && (
-        <div className="text-sm font-medium text-muted-foreground">
-          {state.isBotThinking
-            ? '🤖 Бот думает...'
-            : state.currentPlayer === state.humanPlayer
-              ? `Ваш ход (${PLAYER_LABELS[state.humanPlayer]})`
-              : `Ход бота (${PLAYER_LABELS[botPlayer]})`}
+        <div className="text-sm font-semibold tracking-wide">
+          {state.gameMode === 'pvp' ? (
+            state.currentPlayer === 'white' ? (
+              <span className="text-stone-200">Ход белых ⚪</span>
+            ) : (
+              <span className="text-stone-400">Ход чёрных ⚫</span>
+            )
+          ) : (
+            <span className="text-muted-foreground">
+              {state.isBotThinking
+                ? '🤖 Бот думает...'
+                : state.currentPlayer === state.humanPlayer
+                  ? `Ваш ход (${PLAYER_LABELS[state.humanPlayer]})`
+                  : `Ход бота (${PLAYER_LABELS[botPlayer]})`}
+            </span>
+          )}
         </div>
       )}
 
@@ -146,7 +193,7 @@ export function CheckersGame() {
                 className={`
                   w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center relative
                   ${isLight ? 'bg-amber-100 dark:bg-amber-100' : 'bg-amber-800 dark:bg-amber-900'}
-                  ${!isLight && !isOver && !state.isBotThinking && state.currentPlayer === state.humanPlayer ? 'cursor-pointer' : ''}
+                  ${!isLight && !isOver && (state.gameMode === 'pvp' || (!state.isBotThinking && state.currentPlayer === state.humanPlayer)) ? 'cursor-pointer' : ''}
                 `}
               >
                 {/* Подсветка выбранной */}
@@ -201,14 +248,18 @@ export function CheckersGame() {
             className={`w-full max-w-sm rounded-3xl p-5 text-center border-2 ${
               isDraw
                 ? 'bg-muted/30 border-muted-foreground/30'
-                : isUserWin
+                : (state.gameMode === 'pvp' || isUserWin)
                   ? 'bg-emerald-500/10 border-emerald-500/40'
                   : 'bg-red-500/10 border-red-500/30'
             }`}
           >
-            <div className="text-4xl mb-2">{isDraw ? '🤝' : isUserWin ? '🏆' : '😔'}</div>
+            <div className="text-4xl mb-2">{isDraw ? '🤝' : (state.gameMode === 'pvp' || isUserWin) ? '🏆' : '😔'}</div>
             <div className="text-xl font-black">
-              {isDraw ? 'Ничья!' : isUserWin ? 'Вы победили!' : 'Бот победил!'}
+              {isDraw
+                ? 'Ничья!'
+                : state.gameMode === 'pvp'
+                  ? (state.winner === 'white' ? 'Победили Белые! ⚪' : 'Победили Чёрные! ⚫')
+                  : (isUserWin ? 'Вы победили!' : 'Бот победил!')}
             </div>
             <Button onClick={() => restart()} className="mt-4 cursor-pointer" variant="outline">
               <RotateCcw className="h-4 w-4 mr-2" /> Ещё раз

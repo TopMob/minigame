@@ -113,8 +113,11 @@ export function useConnect4(
   }, [])
 
   const setDifficulty = useCallback((difficulty: Connect4Difficulty) => {
-    if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
-    setState((prev) => ({ ...createConnect4State(prev.mode, difficulty), scores: prev.scores }))
+    setState((prev) => {
+      if (prev.difficulty === difficulty) return prev
+      if (botTimeoutRef.current) clearTimeout(botTimeoutRef.current)
+      return { ...createConnect4State(prev.mode, difficulty), scores: prev.scores }
+    })
     isSavedRef.current = false
   }, [])
 

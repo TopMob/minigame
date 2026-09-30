@@ -82,8 +82,8 @@ export function TicTacToeControls({
                 <button
                   key={d.id}
                   type="button"
-                  onClick={() => onDifficultyChange(d.id)}
-                  className={`py-1.5 px-2 text-xs font-medium rounded-xl border transition-all cursor-pointer ${
+                  onClick={() => difficulty !== d.id && onDifficultyChange(d.id)}
+                  className={`py-1.5 px-2 text-xs font-medium rounded-xl border transition-colors cursor-pointer ${
                     difficulty === d.id
                       ? 'border-primary bg-primary/10 text-primary font-semibold'
                       : 'border-border bg-card/60 text-muted-foreground hover:text-foreground'

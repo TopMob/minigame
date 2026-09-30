@@ -3,6 +3,7 @@
 export type CheckersDifficulty = 'easy' | 'medium' | 'hard'
 export type CheckersPlayer = 'black' | 'white'  // black ходит первым
 export type CheckersStatus = 'in_progress' | 'won' | 'draw'
+export type CheckersGameMode = 'ai' | 'pvp'
 
 export type PieceType = 'man' | 'king'  // man = обычная шашка, king = дамка
 
@@ -24,6 +25,7 @@ export interface CheckersState {
   board: CheckersBoard
   currentPlayer: CheckersPlayer
   humanPlayer: CheckersPlayer
+  gameMode: CheckersGameMode
   status: CheckersStatus
   winner: CheckersPlayer | null
   selectedCell: [number, number] | null

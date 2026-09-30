@@ -134,8 +134,8 @@ export function ReversiGame() {
             {DIFFICULTIES.map((d) => (
               <button
                 key={d.id}
-                onClick={() => setDifficulty(d.id)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
+                onClick={() => state.difficulty !== d.id && setDifficulty(d.id)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
                   state.difficulty === d.id
                     ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
                     : 'border-border/60 text-muted-foreground hover:text-foreground'

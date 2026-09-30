@@ -90,8 +90,8 @@ export function Connect4Game() {
             {DIFFICULTIES.map((d) => (
               <button
                 key={d.id}
-                onClick={() => setDifficulty(d.id)}
-                className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
+                onClick={() => state.difficulty !== d.id && setDifficulty(d.id)}
+                className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
                   state.difficulty === d.id
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border text-muted-foreground hover:text-foreground'
