@@ -1,6 +1,7 @@
 'use client'
 
-// Сетка игрового поля Сапёра с поддержкой горизонтальной прокрутки на мобильных
+// Сетка игрового поля Сапёра с поддержкой масштабирования,
+// горизонтальной прокрутки и подсветки соседей
 
 import { memo } from 'react'
 import { MinesweeperCell } from './MinesweeperCell'
@@ -12,7 +13,9 @@ interface MinesweeperGridProps {
   onToggleFlag: (r: number, c: number) => void
   onMouseDown: () => void
   onMouseUp: () => void
+  onHoverNeighbors?: (r: number, c: number, enabled: boolean) => void
   isGameOver: boolean
+  zoom?: number
 }
 
 export const MinesweeperGrid = memo(function MinesweeperGrid({
@@ -21,18 +24,21 @@ export const MinesweeperGrid = memo(function MinesweeperGrid({
   onToggleFlag,
   onMouseDown,
   onMouseUp,
+  onHoverNeighbors,
   isGameOver,
+  zoom = 1,
 }: MinesweeperGridProps) {
   const rows = grid.length
   const cols = grid[0]?.length || 0
 
   return (
-    <div className="w-full overflow-x-auto p-1 scrollbar-thin">
+    <div className="w-full overflow-x-auto p-1 scrollbar-thin flex justify-center">
       <div
-        className="grid w-fit mx-auto border-2 border-border/80 rounded-lg p-1 bg-muted/30 shadow-inner"
+        className="grid w-fit mx-auto border-2 border-border/80 rounded-xl p-1.5 bg-muted/40 shadow-inner transition-transform origin-top"
         style={{
           gridTemplateColumns: `repeat(${cols}, max-content)`,
           gridTemplateRows: `repeat(${rows}, max-content)`,
+          transform: zoom !== 1 ? `scale(${zoom})` : undefined,
         }}
         role="grid"
         aria-label="Поле Сапёра"
@@ -46,6 +52,7 @@ export const MinesweeperGrid = memo(function MinesweeperGrid({
               onContextMenu={onToggleFlag}
               onMouseDown={onMouseDown}
               onMouseUp={onMouseUp}
+              onHoverNeighbors={onHoverNeighbors}
               isGameOver={isGameOver}
             />
           ))

@@ -1,4 +1,4 @@
-// Движок игры Сапёр: гарантированно безопасный первый клик, каскадное открытие и хординг
+// Движок игры Сапёр: безопасный первый клик, каскадное открытие, хординг, умный поиск подсказок и кастомный размер
 
 import type { GameEngine } from '../_lib/types'
 import type {
@@ -7,10 +7,17 @@ import type {
   MinesweeperOptions,
   CellState,
   Difficulty,
+  HintInfo,
+  CustomBoardConfig,
 } from './types'
 import { MINESWEEPER_CONFIG } from './types'
 
-function getNeighbors(row: number, col: number, rows: number, cols: number): { r: number; c: number }[] {
+export function getNeighbors(
+  row: number,
+  col: number,
+  rows: number,
+  cols: number
+): { r: number; c: number }[] {
   const neighbors: { r: number; c: number }[] = []
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {
@@ -40,6 +47,18 @@ function initializeMines(
       const isNearFirstClick = Math.abs(r - safeRow) <= 1 && Math.abs(c - safeCol) <= 1
       if (!isNearFirstClick) {
         candidates.push({ r, c })
+      }
+    }
+  }
+
+  // Если мин больше, чем свободных клеток вне зоны 3х3, ослабляем зону до 1х1
+  if (candidates.length < totalMines) {
+    candidates.length = 0
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (r !== safeRow || c !== safeCol) {
+          candidates.push({ r, c })
+        }
       }
     }
   }
@@ -77,13 +96,99 @@ function cloneGrid(grid: CellState[][]): CellState[][] {
   return grid.map((row) => row.map((cell) => ({ ...cell })))
 }
 
+// Логический алгоритм поиска гарантированной подсказки
+export function findMinesweeperHint(
+  grid: CellState[][],
+  rows: number,
+  cols: number
+): HintInfo | null {
+  // 1. Поиск детерминированных ходов:
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = grid[r][c]
+      if (!cell.isRevealed || cell.adjacentMines === 0) continue
+
+      const neighbors = getNeighbors(r, c, rows, cols)
+      const flagged = neighbors.filter((n) => grid[n.r][n.c].isFlagged)
+      const unrevealed = neighbors.filter(
+        (n) => !grid[n.r][n.c].isRevealed && !grid[n.r][n.c].isFlagged
+      )
+
+      if (unrevealed.length === 0) continue
+
+      // Правило 1: Вокруг ячейки уже найдено нужное число мин -> все остальные закрытые соседи 100% безопасны
+      if (flagged.length === cell.adjacentMines) {
+        const target = unrevealed[0]
+        return {
+          row: target.r,
+          col: target.c,
+          action: 'reveal',
+          reason: `Вокруг цифры ${cell.adjacentMines} уже отмечены все ${cell.adjacentMines} мин. Эта клетка безопасна!`,
+        }
+      }
+
+      // Правило 2: Число закрытых соседей равно числу оставшихся мин -> все они мины
+      const remainingMines = cell.adjacentMines - flagged.length
+      if (remainingMines > 0 && remainingMines === unrevealed.length) {
+        const target = unrevealed[0]
+        return {
+          row: target.r,
+          col: target.c,
+          action: 'flag',
+          reason: `Для цифры ${cell.adjacentMines} осталось ${unrevealed.length} закрытых ячеек. Здесь точно мина!`,
+        }
+      }
+    }
+  }
+
+  // 2. Если тривиальных улик нет, берем случайную закрытую ячейку
+  const hidden: { r: number; c: number }[] = []
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!grid[r][c].isRevealed && !grid[r][c].isFlagged) {
+        hidden.push({ r, c })
+      }
+    }
+  }
+
+  if (hidden.length > 0) {
+    const pick = hidden[Math.floor(Math.random() * hidden.length)]
+    return {
+      row: pick.r,
+      col: pick.c,
+      action: 'reveal',
+      reason: 'Однозначных логических ходов нет. Попробуйте открыть эту ячейку.',
+    }
+  }
+
+  return null
+}
+
 export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, MinesweeperOptions> = {
   createInitialState(opts: MinesweeperOptions = {}): MinesweeperState {
     const difficulty: Difficulty = opts.difficulty ?? 'easy'
-    const config = MINESWEEPER_CONFIG[difficulty]
-    const rows = opts.rows ?? config.rows
-    const cols = opts.cols ?? config.cols
-    const totalMines = opts.mines ?? config.mines
+
+    let rows: number
+    let cols: number
+    let totalMines: number
+    let customConfig: CustomBoardConfig | undefined = opts.customConfig
+
+    if (difficulty === 'custom' && customConfig) {
+      rows = Math.max(8, Math.min(24, customConfig.rows))
+      cols = Math.max(8, Math.min(30, customConfig.cols))
+      const maxMines = Math.floor(rows * cols * 0.85)
+      totalMines = Math.max(1, Math.min(maxMines, customConfig.mines))
+    } else if (difficulty === 'custom') {
+      rows = 12
+      cols = 12
+      totalMines = 20
+      customConfig = { rows, cols, mines: totalMines }
+    } else {
+      const config = MINESWEEPER_CONFIG[difficulty]
+      rows = opts.rows ?? config.rows
+      cols = opts.cols ?? config.cols
+      totalMines = opts.mines ?? config.mines
+    }
 
     const grid: CellState[][] = Array.from({ length: rows }, (_, r) =>
       Array.from({ length: cols }, (_, c) => ({
@@ -93,6 +198,9 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
         adjacentMines: 0,
         isRevealed: false,
         isFlagged: false,
+        isQuestion: false,
+        isHighlighted: false,
+        isHinted: false,
       }))
     )
 
@@ -108,16 +216,81 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
       difficulty,
       cellsRevealed: 0,
       totalSafeCells: rows * cols - totalMines,
+      customConfig,
+      hint: null,
     }
   },
 
   applyAction(state: MinesweeperState, action: MinesweeperAction): MinesweeperState {
     if (action.type === 'restart') {
-      return minesweeperEngine.createInitialState({ difficulty: state.difficulty })
+      return minesweeperEngine.createInitialState({
+        difficulty: state.difficulty,
+        customConfig: state.customConfig,
+      })
     }
 
     if (action.type === 'setDifficulty') {
-      return minesweeperEngine.createInitialState({ difficulty: action.difficulty })
+      return minesweeperEngine.createInitialState({
+        difficulty: action.difficulty,
+        customConfig: action.customConfig ?? state.customConfig,
+      })
+    }
+
+    // Очистка подсказки
+    if (action.type === 'clearHint') {
+      const newGrid = cloneGrid(state.grid)
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          newGrid[r][c].isHinted = false
+        }
+      }
+      return { ...state, grid: newGrid, hint: null }
+    }
+
+    // Подсветка соседей при хординге / наведении
+    if (action.type === 'highlightNeighbors') {
+      const { row, col, enabled } = action
+      const newGrid = cloneGrid(state.grid)
+
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          newGrid[r][c].isHighlighted = false
+        }
+      }
+
+      if (enabled && row >= 0 && row < state.rows && col >= 0 && col < state.cols) {
+        const neighbors = getNeighbors(row, col, state.rows, state.cols)
+        for (const n of neighbors) {
+          const target = newGrid[n.r][n.c]
+          if (!target.isRevealed && !target.isFlagged) {
+            target.isHighlighted = true
+          }
+        }
+      }
+
+      return { ...state, grid: newGrid }
+    }
+
+    // Запрос подсказки
+    if (action.type === 'getHint') {
+      if (state.status === 'won' || state.status === 'lost') return state
+
+      const hint = findMinesweeperHint(state.grid, state.rows, state.cols)
+      if (!hint) return state
+
+      const newGrid = cloneGrid(state.grid)
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          newGrid[r][c].isHinted = false
+        }
+      }
+      newGrid[hint.row][hint.col].isHinted = true
+
+      return {
+        ...state,
+        grid: newGrid,
+        hint,
+      }
     }
 
     if (state.status === 'won' || state.status === 'lost') {
@@ -127,13 +300,36 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
     const newGrid = cloneGrid(state.grid)
     const { rows, cols } = state
 
+    // Сброс подсветки хординга
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        newGrid[r][c].isHighlighted = false
+      }
+    }
+
+    // Переключение флага / знака вопроса
     if (action.type === 'toggleFlag') {
-      const { row, col } = action
+      const { row, col, useQuestionMarks } = action
       const cell = newGrid[row][col]
       if (cell.isRevealed) return state
 
-      const nextFlagged = !cell.isFlagged
-      cell.isFlagged = nextFlagged
+      cell.isHinted = false
+
+      if (useQuestionMarks) {
+        if (!cell.isFlagged && !cell.isQuestion) {
+          cell.isFlagged = true
+          cell.isQuestion = false
+        } else if (cell.isFlagged) {
+          cell.isFlagged = false
+          cell.isQuestion = true
+        } else {
+          cell.isFlagged = false
+          cell.isQuestion = false
+        }
+      } else {
+        cell.isFlagged = !cell.isFlagged
+        cell.isQuestion = false
+      }
 
       const flagCount = newGrid.reduce(
         (acc, r) => acc + r.filter((c) => c.isFlagged).length,
@@ -143,11 +339,12 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
       return {
         ...state,
         grid: newGrid,
-        status: state.status,
         minesRemaining: state.totalMines - flagCount,
+        hint: null,
       }
     }
 
+    // Открытие ячейки
     if (action.type === 'reveal') {
       const { row, col } = action
       const target = newGrid[row][col]
@@ -156,17 +353,19 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
         return state
       }
 
-      // Если это самый первый клик в игре: инициализируем мины с гарантией зоны 3x3
+      target.isHinted = false
+
+      // Безопасный первый клик
       if (!state.firstClickDone) {
         initializeMines(newGrid, rows, cols, state.totalMines, row, col)
       }
 
-      // Если кликнули по мине: поражение
+      // Если попали на мину
       if (target.isMine) {
         target.isRevealed = true
         target.isExploded = true
 
-        // Раскрываем все остальные мины и отмечаем неверные флаги
+        // Вскрываем все остальные мины
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             const cell = newGrid[r][c]
@@ -183,12 +382,14 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
           grid: newGrid,
           status: 'lost',
           firstClickDone: true,
+          hint: null,
         }
       }
 
-      // Каскадное открытие пустых клеток с помощью BFS
+      // Каскадное открытие BFS
       const queue: { r: number; c: number }[] = [{ r: row, c: col }]
       target.isRevealed = true
+      target.isQuestion = false
       let newlyRevealed = 1
 
       while (queue.length > 0) {
@@ -201,6 +402,8 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
             const nCell = newGrid[n.r][n.c]
             if (!nCell.isRevealed && !nCell.isFlagged && !nCell.isMine) {
               nCell.isRevealed = true
+              nCell.isQuestion = false
+              nCell.isHinted = false
               newlyRevealed++
               if (nCell.adjacentMines === 0) {
                 queue.push({ r: n.r, c: n.c })
@@ -214,11 +417,12 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
       const isWon = totalRevealed >= state.totalSafeCells
 
       if (isWon) {
-        // При победе автоматически ставим флаги на все мины
+        // При победе выставляем флаги на все мины
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             if (newGrid[r][c].isMine) {
               newGrid[r][c].isFlagged = true
+              newGrid[r][c].isQuestion = false
             }
           }
         }
@@ -231,9 +435,11 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
         firstClickDone: true,
         cellsRevealed: totalRevealed,
         minesRemaining: isWon ? 0 : state.minesRemaining,
+        hint: null,
       }
     }
 
+    // Хординг (раскрытие соседей)
     if (action.type === 'chord') {
       const { row, col } = action
       const cell = newGrid[row][col]
@@ -245,7 +451,7 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
       const neighbors = getNeighbors(row, col, rows, cols)
       const flaggedCount = neighbors.filter((n) => newGrid[n.r][n.c].isFlagged).length
 
-      // Хординг разрешен только если число флагов вокруг равно числу мины в ячейке
+      // Хординг разрешен только когда количество флагов равно числу мин в ячейке
       if (flaggedCount !== cell.adjacentMines) {
         return state
       }
@@ -258,6 +464,8 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
         const nCell = newGrid[n.r][n.c]
         if (!nCell.isRevealed && !nCell.isFlagged) {
           nCell.isRevealed = true
+          nCell.isQuestion = false
+          nCell.isHinted = false
           newlyRevealed++
 
           if (nCell.isMine) {
@@ -284,10 +492,11 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
           ...state,
           grid: newGrid,
           status: 'lost',
+          hint: null,
         }
       }
 
-      // Каскадное открытие пустых ячеек, задетых хордингом
+      // Каскадное открытие пустых
       while (emptyQueue.length > 0) {
         const curr = emptyQueue.shift()!
         const currNeighbors = getNeighbors(curr.r, curr.c, rows, cols)
@@ -295,6 +504,8 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
           const nCell = newGrid[n.r][n.c]
           if (!nCell.isRevealed && !nCell.isFlagged && !nCell.isMine) {
             nCell.isRevealed = true
+            nCell.isQuestion = false
+            nCell.isHinted = false
             newlyRevealed++
             if (nCell.adjacentMines === 0) {
               emptyQueue.push({ r: n.r, c: n.c })
@@ -311,6 +522,7 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
           for (let c = 0; c < cols; c++) {
             if (newGrid[r][c].isMine) {
               newGrid[r][c].isFlagged = true
+              newGrid[r][c].isQuestion = false
             }
           }
         }
@@ -322,6 +534,7 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
         status: isWon ? 'won' : 'playing',
         cellsRevealed: totalRevealed,
         minesRemaining: isWon ? 0 : state.minesRemaining,
+        hint: null,
       }
     }
 
@@ -330,6 +543,8 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
 
   isValidAction(state: MinesweeperState, action: MinesweeperAction): boolean {
     if (action.type === 'restart' || action.type === 'setDifficulty') return true
+    if (action.type === 'getHint' || action.type === 'clearHint') return true
+    if (action.type === 'highlightNeighbors') return true
     if (state.status === 'won' || state.status === 'lost') return false
 
     const { row, col } = action
@@ -344,7 +559,13 @@ export const minesweeperEngine: GameEngine<MinesweeperState, MinesweeperAction, 
 
   getScore(state: MinesweeperState): number {
     if (state.status !== 'won') return 0
-    const multiplier = { easy: 1, medium: 3, hard: 6 }[state.difficulty]
+    let multiplier = 1
+    if (state.difficulty === 'medium') multiplier = 3
+    else if (state.difficulty === 'hard') multiplier = 6
+    else if (state.difficulty === 'custom') {
+      multiplier = Math.max(1, Math.round((state.totalMines / (state.rows * state.cols)) * 12))
+    }
+
     const base = 1000 * multiplier
     const timeBonus = Math.max(0, 999 - state.timeElapsed) * multiplier
     return base + timeBonus

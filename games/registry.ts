@@ -172,6 +172,18 @@ export const GAME_REGISTRY: GameMeta[] = [
     persistsSessions: false,
     isActive: true,
   },
+  {
+    id: 'tanks',
+    name: 'Танчики',
+    icon: '🪖',
+    category: 'arcade',
+    path: '/tanks',
+    difficulties: ['easy', 'medium', 'hard'],
+    isMultiplayer: false,
+    pattern: 'D',
+    persistsSessions: false,
+    isActive: true,
+  },
 ]
 
 // Хелперы для работы с реестром

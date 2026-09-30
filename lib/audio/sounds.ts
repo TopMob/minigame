@@ -629,6 +629,363 @@ class SoundEffectsManager {
       osc.stop(ctx.currentTime + 0.06)
     } catch {}
   }
+
+  // --- ТАНЧИКИ (BATTLE CITY / TANKS) ---
+
+  // Выстрел танковой пушки (сочный бас + шумовой хлопок)
+  public playTankShoot(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(280, now)
+      osc.frequency.exponentialRampToValueAtTime(45, now + 0.12)
+
+      gain.gain.setValueAtTime(0.25, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.12)
+
+      // Короткий шум выхлопа
+      const bufSize = Math.floor(ctx.sampleRate * 0.06)
+      const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize)
+      }
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+      const nGain = ctx.createGain()
+      nGain.gain.setValueAtTime(0.15, now)
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06)
+      noise.connect(nGain)
+      nGain.connect(ctx.destination)
+      noise.start(now)
+    } catch {}
+  }
+
+  // Попадание по броне танка / рикошет о сталь
+  public playTankHit(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'square'
+      osc.frequency.setValueAtTime(820, now)
+      osc.frequency.exponentialRampToValueAtTime(140, now + 0.09)
+
+      gain.gain.setValueAtTime(0.12, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.09)
+    } catch {}
+  }
+
+  // Разрушение кирпичной стены (хруст / обвал)
+  public playBrickHit(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const bufSize = Math.floor(ctx.sampleRate * 0.08)
+      const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.3))
+      }
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'bandpass'
+      filter.frequency.setValueAtTime(750, now)
+      filter.Q.setValueAtTime(1.5, now)
+
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.18, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+
+      noise.connect(filter)
+      filter.connect(gain)
+      gain.connect(ctx.destination)
+      noise.start(now)
+    } catch {}
+  }
+
+  // Взрыв танка (малый или большой)
+  public playTankExplosion(isBig = false): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const duration = isBig ? 0.45 : 0.28
+
+      // Низкочастотный удар
+      const osc = ctx.createOscillator()
+      const oscGain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(isBig ? 130 : 160, now)
+      osc.frequency.exponentialRampToValueAtTime(25, now + duration)
+
+      oscGain.gain.setValueAtTime(isBig ? 0.32 : 0.22, now)
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+
+      osc.connect(oscGain)
+      oscGain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + duration)
+
+      // Мощный шумовой взрыв
+      const bufSize = Math.floor(ctx.sampleRate * duration)
+      const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1)
+      }
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(isBig ? 900 : 700, now)
+      filter.frequency.exponentialRampToValueAtTime(80, now + duration)
+
+      const nGain = ctx.createGain()
+      nGain.gain.setValueAtTime(isBig ? 0.35 : 0.22, now)
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+
+      noise.connect(filter)
+      filter.connect(nGain)
+      nGain.connect(ctx.destination)
+      noise.start(now)
+      noise.stop(now + duration)
+    } catch {}
+  }
+
+  // Сбор бонуса (ретро-арпеджио 8-bit)
+  public playTankPowerup(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const notes = [523.25, 659.25, 783.99, 1046.5] // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'square'
+        osc.frequency.setValueAtTime(freq, now + idx * 0.05)
+
+        gain.gain.setValueAtTime(0.12, now + idx * 0.05)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (idx + 1) * 0.05)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now + idx * 0.05)
+        osc.stop(now + (idx + 1) * 0.05)
+      })
+    } catch {}
+  }
+
+  // Уничтожение штаба (Орла)
+  public playBaseDestroy(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(100, now)
+      osc.frequency.exponentialRampToValueAtTime(20, now + 0.9)
+
+      gain.gain.setValueAtTime(0.4, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.9)
+
+      // Взрывной грохот
+      const bufSize = Math.floor(ctx.sampleRate * 0.8)
+      const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1)
+      }
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(600, now)
+      filter.frequency.exponentialRampToValueAtTime(40, now + 0.8)
+
+      const nGain = ctx.createGain()
+      nGain.gain.setValueAtTime(0.35, now)
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8)
+
+      noise.connect(filter)
+      filter.connect(nGain)
+      nGain.connect(ctx.destination)
+      noise.start(now)
+      noise.stop(now + 0.8)
+    } catch {}
+  }
+
+  // --- САПЁР (MINESWEEPER) ---
+
+  // Открытие клетки (мягкий тактильный щелчок или приятный каскадный перелив)
+  public playMinesweeperReveal(cascadeCount: number = 1): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      if (cascadeCount <= 1) {
+        // Одиночный приятный щелчок
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(440, now)
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.04)
+
+        gain.gain.setValueAtTime(0.14, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + 0.04)
+      } else {
+        // Каскадный перелив (эффект ручейка / домино)
+        const notes = [330, 392, 440, 523, 587]
+        const steps = Math.min(notes.length, Math.max(2, Math.floor(cascadeCount / 2)))
+        for (let i = 0; i < steps; i++) {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.type = 'sine'
+          osc.frequency.setValueAtTime(notes[i], now + i * 0.035)
+
+          gain.gain.setValueAtTime(0.09, now + i * 0.035)
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.035 + 0.06)
+
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.start(now + i * 0.035)
+          osc.stop(now + i * 0.035 + 0.06)
+        }
+      }
+    } catch {}
+  }
+
+  // Установка или снятие флага
+  public playMinesweeperFlag(isPlaced: boolean = true): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      if (isPlaced) {
+        osc.frequency.setValueAtTime(600, now)
+        osc.frequency.exponentialRampToValueAtTime(950, now + 0.06)
+      } else {
+        osc.frequency.setValueAtTime(800, now)
+        osc.frequency.exponentialRampToValueAtTime(450, now + 0.05)
+      }
+
+      gain.gain.setValueAtTime(0.12, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.06)
+    } catch {}
+  }
+
+  // Звук хординга (двойной быстрый щелчок)
+  public playMinesweeperChord(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      ;[0, 0.03].forEach((delay, idx) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.setValueAtTime(idx === 0 ? 520 : 660, now + delay)
+
+        gain.gain.setValueAtTime(0.12, now + delay)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.035)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now + delay)
+        osc.stop(now + delay + 0.035)
+      })
+    } catch {}
+  }
+
+  // Звук подсказки (мягкий колокольчик)
+  public playMinesweeperHint(): void {
+    if (this.muted) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const notes = [659.25, 880] // E5 -> A5
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq, now + idx * 0.07)
+
+        gain.gain.setValueAtTime(0.1, now + idx * 0.07)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.18)
+
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(now + idx * 0.07)
+        osc.stop(now + idx * 0.07 + 0.18)
+      })
+    } catch {}
+  }
+
+  // Звук взрыва мины
+  public playMinesweeperExplosion(): void {
+    this.playTankExplosion(true)
+  }
 }
 
 export const soundManager = new SoundEffectsManager()

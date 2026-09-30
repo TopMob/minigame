@@ -58,8 +58,9 @@ export function getLeaderboardStats(
     const diffRecords = records.filter((r) => r.difficulty === diff)
     const wonRecords = diffRecords.filter((r) => r.won)
 
-    // Для змейки и 2048 лучший счет берется со всех партий
-    const scorePool = gameId === 'snake' || gameId === '2048' ? diffRecords : wonRecords
+    // Для змейки, 2048 и танчиков лучший счет берется со всех партий
+    const scorePool =
+      gameId === 'snake' || gameId === '2048' || gameId === 'tanks' ? diffRecords : wonRecords
 
     const bestTimeSeconds =
       wonRecords.length > 0 ? Math.min(...wonRecords.map((r) => r.timeSeconds)) : null
